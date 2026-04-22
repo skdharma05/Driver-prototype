@@ -11,11 +11,7 @@
       "android"
     ],
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "iosapp",
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
@@ -45,17 +41,12 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-speech-recognition"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    },
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "83029f14-8acb-4001-9a61-a4ca0de8ff96"
-      }
     }
   }
 }
