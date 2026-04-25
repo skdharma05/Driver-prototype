@@ -16,8 +16,8 @@ export default function ProfileSetupScreen() {
   const [form, setForm] = useState({
     fullName: '',
     phone: user?.phoneNumber || '',
-    vehicleType: '',
-    vehicleRegNo: '',
+    userType: 'SOLO_DRIVER',
+    vehicles: [{ vehicleType: '', vehicleRegNo: '', driverName: '', driverPhone: '' }],
     homeCity: '',
     homeState: '',
     upiId: '',
@@ -26,6 +26,7 @@ export default function ProfileSetupScreen() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [showVehiclePicker, setShowVehiclePicker] = useState(false);
+  const [activeVehicleIndex, setActiveVehicleIndex] = useState(0);
 
   // Refs for focus navigation
   const phoneRef = useRef(null);
@@ -39,13 +40,41 @@ export default function ProfileSetupScreen() {
     let newErrors = {};
 
     if (!form.fullName.trim()) { newErrors.fullName = 'Required'; valid = false; }
-    if (!form.vehicleType) { newErrors.vehicleType = 'Required'; valid = false; }
-    if (!form.vehicleRegNo.trim()) { newErrors.vehicleRegNo = 'Required'; valid = false; }
     if (!form.homeCity.trim()) { newErrors.homeCity = 'Required'; valid = false; }
     if (!form.upiId.trim()) { newErrors.upiId = 'Required'; valid = false; }
 
+    form.vehicles.forEach((v, index) => {
+      if (!v.vehicleType) { newErrors[`vehicleType_${index}`] = 'Required'; valid = false; }
+      if (!v.vehicleRegNo.trim()) { newErrors[`vehicleRegNo_${index}`] = 'Required'; valid = false; }
+      
+      if (form.userType === 'TRANSPORTER') {
+        if (!v.driverName?.trim()) { newErrors[`driverName_${index}`] = 'Required'; valid = false; }
+        if (!v.driverPhone?.trim() || v.driverPhone.trim().length < 10) { 
+          newErrors[`driverPhone_${index}`] = 'Valid phone required'; valid = false; 
+        }
+      }
+    });
+
     setErrors(newErrors);
     return valid;
+  };
+
+  const addVehicle = () => {
+    setForm({
+      ...form,
+      vehicles: [...form.vehicles, { vehicleType: '', vehicleRegNo: '', driverName: '', driverPhone: '' }]
+    });
+  };
+
+  const removeVehicle = (index) => {
+    const updated = form.vehicles.filter((_, i) => i !== index);
+    setForm({ ...form, vehicles: updated });
+  };
+
+  const updateVehicle = (index, field, value) => {
+    const updated = [...form.vehicles];
+    updated[index][field] = value;
+    setForm({ ...form, vehicles: updated });
   };
 
   const handleSave = async () => {
@@ -93,6 +122,24 @@ export default function ProfileSetupScreen() {
             <Text style={styles.sectionTitle}>Personal Details</Text>
             
             <View style={styles.inputGroup}>
+              <Text style={styles.label}>I am a *</Text>
+              <View style={styles.roleContainer}>
+                <TouchableOpacity 
+                  style={[styles.roleBtn, form.userType === 'SOLO_DRIVER' && styles.roleBtnActive]}
+                  onPress={() => setForm({...form, userType: 'SOLO_DRIVER', vehicles: [form.vehicles[0] || { vehicleType: '', vehicleRegNo: '', driverName: '', driverPhone: '' }]})}
+                >
+                  <Text style={[styles.roleBtnText, form.userType === 'SOLO_DRIVER' && styles.roleBtnTextActive]}>Solo Driver</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.roleBtn, form.userType === 'TRANSPORTER' && styles.roleBtnActive]}
+                  onPress={() => setForm({...form, userType: 'TRANSPORTER'})}
+                >
+                  <Text style={[styles.roleBtnText, form.userType === 'TRANSPORTER' && styles.roleBtnTextActive]}>Transporter</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
               <Text style={styles.label}>Full Name *</Text>
               <TextInput
                 style={[styles.input, errors.fullName && styles.inputError]}
@@ -139,37 +186,92 @@ export default function ProfileSetupScreen() {
 
           {/* Vehicle Details */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Vehicle Details</Text>
+            <Text style={styles.sectionTitle}>
+              {form.userType === 'TRANSPORTER' ? 'Fleet Details' : 'Vehicle Details'}
+            </Text>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Vehicle Type *</Text>
-              <TouchableOpacity 
-                style={[styles.pickerBtn, errors.vehicleType && styles.inputError]} 
-                onPress={() => setShowVehiclePicker(true)}
-              >
-                <Text style={form.vehicleType ? styles.pickerBtnText : styles.pickerBtnPlaceholder}>
-                  {form.vehicleType ? VEHICLE_TYPE_OPTIONS.find(o => o.value === form.vehicleType)?.label : 'Select Vehicle Type'}
-                </Text>
-                <ChevronDown size={20} color={theme.colors.textSecondary} />
+            {form.vehicles.map((vehicle, index) => (
+              <View key={index} style={styles.vehicleCard}>
+                {form.userType === 'TRANSPORTER' && (
+                  <View style={styles.vehicleHeader}>
+                    <Text style={styles.vehicleTitle}>Vehicle {index + 1}</Text>
+                    {form.vehicles.length > 1 && (
+                      <TouchableOpacity onPress={() => removeVehicle(index)} style={styles.removeBtn}>
+                        <Text style={styles.removeText}>Remove</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Vehicle Type *</Text>
+                  <TouchableOpacity 
+                    style={[styles.pickerBtn, errors[`vehicleType_${index}`] && styles.inputError]} 
+                    onPress={() => {
+                      setActiveVehicleIndex(index);
+                      setShowVehiclePicker(true);
+                    }}
+                  >
+                    <Text style={vehicle.vehicleType ? styles.pickerBtnText : styles.pickerBtnPlaceholder}>
+                      {vehicle.vehicleType ? VEHICLE_TYPE_OPTIONS.find(o => o.value === vehicle.vehicleType)?.label : 'Select Vehicle Type'}
+                    </Text>
+                    <ChevronDown size={20} color={theme.colors.textSecondary} />
+                  </TouchableOpacity>
+                  {errors[`vehicleType_${index}`] && <Text style={styles.errorText}>{errors[`vehicleType_${index}`]}</Text>}
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Registration Number *</Text>
+                  <TextInput
+                    style={[styles.input, errors[`vehicleRegNo_${index}`] && styles.inputError]}
+                    placeholder="e.g. TN38CD5678"
+                    autoCapitalize="characters"
+                    value={vehicle.vehicleRegNo}
+                    onChangeText={(text) => updateVehicle(index, 'vehicleRegNo', text.toUpperCase())}
+                    returnKeyType="next"
+                    autoCorrect={false}
+                  />
+                  {errors[`vehicleRegNo_${index}`] && <Text style={styles.errorText}>{errors[`vehicleRegNo_${index}`]}</Text>}
+                </View>
+
+                {form.userType === 'TRANSPORTER' && (
+                  <>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Driver Name *</Text>
+                      <TextInput
+                        style={[styles.input, errors[`driverName_${index}`] && styles.inputError]}
+                        placeholder="Enter driver name"
+                        value={vehicle.driverName || ''}
+                        onChangeText={(text) => updateVehicle(index, 'driverName', text)}
+                        returnKeyType="next"
+                        autoCorrect={false}
+                        spellCheck={false}
+                      />
+                      {errors[`driverName_${index}`] && <Text style={styles.errorText}>{errors[`driverName_${index}`]}</Text>}
+                    </View>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Driver Phone Number *</Text>
+                      <TextInput
+                        style={[styles.input, errors[`driverPhone_${index}`] && styles.inputError]}
+                        placeholder="10-digit mobile number"
+                        keyboardType="number-pad"
+                        maxLength={10}
+                        value={vehicle.driverPhone || ''}
+                        onChangeText={(text) => updateVehicle(index, 'driverPhone', text.replace(/[^0-9]/g, ''))}
+                        returnKeyType="done"
+                      />
+                      {errors[`driverPhone_${index}`] && <Text style={styles.errorText}>{errors[`driverPhone_${index}`]}</Text>}
+                    </View>
+                  </>
+                )}
+              </View>
+            ))}
+
+            {form.userType === 'TRANSPORTER' && (
+              <TouchableOpacity style={styles.addVehicleBtn} onPress={addVehicle}>
+                <Text style={styles.addVehicleText}>+ Add Another Vehicle</Text>
               </TouchableOpacity>
-              {errors.vehicleType && <Text style={styles.errorText}>{errors.vehicleType}</Text>}
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Registration Number *</Text>
-              <TextInput
-                ref={regRef}
-                style={[styles.input, errors.vehicleRegNo && styles.inputError]}
-                placeholder="e.g. TN38CD5678"
-                autoCapitalize="characters"
-                value={form.vehicleRegNo}
-                onChangeText={(text) => setForm({...form, vehicleRegNo: text.toUpperCase()})}
-                returnKeyType="next"
-                onSubmitEditing={() => upiRef.current?.focus()}
-                autoCorrect={false}
-              />
-              {errors.vehicleRegNo && <Text style={styles.errorText}>{errors.vehicleRegNo}</Text>}
-            </View>
+            )}
           </View>
 
           {/* Payment Details */}
@@ -229,16 +331,14 @@ export default function ProfileSetupScreen() {
                 <TouchableOpacity 
                   style={styles.modalItem}
                   onPress={() => {
-                    setForm({...form, vehicleType: item.value});
+                    updateVehicle(activeVehicleIndex, 'vehicleType', item.value);
                     setShowVehiclePicker(false);
-                    // Focus registration number after vehicle selection
-                    regRef.current?.focus();
                   }}
                 >
-                  <Text style={[styles.modalItemText, form.vehicleType === item.value && styles.modalItemTextActive]}>
+                  <Text style={[styles.modalItemText, form.vehicles[activeVehicleIndex]?.vehicleType === item.value && styles.modalItemTextActive]}>
                     {item.label}
                   </Text>
-                  {form.vehicleType === item.value && <Check size={20} color={theme.colors.primary} />}
+                  {form.vehicles[activeVehicleIndex]?.vehicleType === item.value && <Check size={20} color={theme.colors.primary} />}
                 </TouchableOpacity>
               )}
             />
@@ -283,6 +383,68 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.lg,
     marginBottom: theme.spacing.md,
     ...theme.shadows.sm,
+  },
+  roleContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  roleBtn: {
+    flex: 1,
+    height: 48,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surface,
+  },
+  roleBtnActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primary + '10', // Light primary bg
+  },
+  roleBtnText: {
+    ...theme.typography.bodySemiBold,
+    color: theme.colors.textSecondary,
+  },
+  roleBtnTextActive: {
+    color: theme.colors.primaryDark,
+  },
+  vehicleCard: {
+    marginBottom: theme.spacing.md,
+    paddingBottom: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight,
+  },
+  vehicleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  vehicleTitle: {
+    ...theme.typography.bodySemiBold,
+    color: theme.colors.text,
+  },
+  removeBtn: {
+    padding: 4,
+  },
+  removeText: {
+    ...theme.typography.caption,
+    color: theme.colors.error,
+    fontWeight: '600',
+  },
+  addVehicleBtn: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.md,
+    borderStyle: 'dashed',
+    marginTop: theme.spacing.xs,
+  },
+  addVehicleText: {
+    ...theme.typography.bodySemiBold,
+    color: theme.colors.primary,
   },
   sectionTitleRow: {
     flexDirection: 'row',

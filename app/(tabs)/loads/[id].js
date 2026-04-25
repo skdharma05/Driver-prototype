@@ -6,7 +6,7 @@ import MapView, { Marker, Polyline, PROVIDER_DEFAULT, UrlTile } from 'react-nati
 import { theme } from '../../../src/styles/theme';
 import { ChevronLeft, MapPin, Calendar, Weight, Truck } from 'lucide-react-native';
 import { calculateMarketRate } from '../../../src/utils/marketRate';
-import { DUMMY_LOADS } from '../loads';
+import { DUMMY_LOADS } from '../../../src/constants/dummyData';
 import { saveBid } from '../../../src/utils/bidStore';
 
 export default function LoadDetailScreen() {

@@ -12,12 +12,19 @@ export default function ProfileScreen() {
 
   const profile = {
     fullName: driverProfile?.fullName || 'New Driver',
+    userType: driverProfile?.userType || 'SOLO_DRIVER',
     vehicleType: driverProfile?.vehicleType || 'Vehicle Info',
     vehicleRegNo: driverProfile?.vehicleRegNo || 'N/A',
     homeCity: driverProfile?.homeCity || '',
     homeState: driverProfile?.homeState || '',
     upiId: driverProfile?.upiId || '',
-    phone: driverProfile?.phone || user?.phoneNumber || ''
+    phone: driverProfile?.phone || user?.phoneNumber || '',
+    vehicles: driverProfile?.vehicles || []
+  };
+
+  const primaryVehicle = profile.vehicles[0] || { 
+    vehicleRegNo: profile.vehicleRegNo, 
+    vehicleType: profile.vehicleType 
   };
 
   const handleLogout = () => {
@@ -38,7 +45,11 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.profileInfo}>
             <Text style={styles.nameText}>{profile.fullName}</Text>
-            <Text style={styles.vehicleText}>{profile.vehicleRegNo} • {profile.vehicleType}</Text>
+            <Text style={styles.vehicleText}>
+              {profile.userType === 'TRANSPORTER' 
+                ? `${profile.vehicles.length} Vehicles in Fleet` 
+                : `${primaryVehicle.vehicleRegNo} • ${primaryVehicle.vehicleType}`}
+            </Text>
             <View style={styles.phoneRow}>
                <Phone size={14} color={theme.colors.textSecondary} />
                <Text style={styles.phoneText}>{profile.phone || 'Phone not set'}</Text>
@@ -70,6 +81,39 @@ export default function ProfileScreen() {
               <View style={styles.ratingRow}><Text style={styles.ratingLabel}>Communication</Text><View style={styles.barBg}><View style={[styles.barFill, {width: '85%'}]}/></View></View>
            </View>
         </View>
+
+        {/* My Fleet (Transporter Only) */}
+        {profile.userType === 'TRANSPORTER' && (
+          <View style={styles.fleetSection}>
+            <View style={styles.fleetHeader}>
+              <Text style={styles.sectionTitle}>My Fleet</Text>
+              <TouchableOpacity onPress={() => Alert.alert('Add Vehicle', 'Adding new vehicle feature coming soon.')}>
+                <Text style={styles.addVehicleLink}>+ Add</Text>
+              </TouchableOpacity>
+            </View>
+
+            {profile.vehicles.map((v, index) => (
+              <TouchableOpacity 
+                key={index} 
+                style={styles.fleetCard}
+                onPress={() => Alert.alert('Edit Vehicle', `Edit vehicle ${v.vehicleRegNo}`)}
+              >
+                <View style={styles.fleetCardHeader}>
+                  <Text style={styles.fleetRegText}>{v.vehicleRegNo || 'No Reg'}</Text>
+                  <Text style={styles.fleetTypeText}>{v.vehicleType || 'Type'}</Text>
+                </View>
+                <View style={styles.driverInfoRow}>
+                  <User size={14} color={theme.colors.textSecondary} />
+                  <Text style={styles.driverText}>{v.driverName || 'No Driver Assigned'}</Text>
+                </View>
+                <View style={styles.driverInfoRow}>
+                  <Phone size={14} color={theme.colors.textSecondary} />
+                  <Text style={styles.driverText}>{v.driverPhone || 'No Phone'}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         {/* Menu Items */}
         <View style={styles.menuGroup}>
@@ -158,4 +202,19 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.statusRejected, padding: 16, borderRadius: theme.borderRadius.md,
   },
   logoutText: { ...theme.typography.button, color: theme.colors.error },
+  fleetSection: { marginBottom: theme.spacing.lg },
+  fleetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md },
+  addVehicleLink: { ...theme.typography.button, color: theme.colors.primary },
+  fleetCard: {
+    backgroundColor: theme.colors.surface,
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
+    marginBottom: theme.spacing.sm,
+    ...theme.shadows.xs,
+  },
+  fleetCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.sm },
+  fleetRegText: { ...theme.typography.bodySemiBold, color: theme.colors.text },
+  fleetTypeText: { ...theme.typography.small, color: theme.colors.primary, backgroundColor: theme.colors.primary + '10', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  driverInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  driverText: { ...theme.typography.bodyMedium, color: theme.colors.textSecondary },
 });
