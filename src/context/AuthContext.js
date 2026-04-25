@@ -87,14 +87,25 @@ export const AuthProvider = ({ children }) => {
     try {
       await auth.signOut();
       await AsyncStorage.removeItem(PROFILE_CACHE_KEY);
+      setUser(null);
       setDriverProfile(null);
     } catch (error) {
       console.error("Error signing out: ", error);
     }
   };
 
+  const loginAsDummy = async (dummyUser, dummyProfile) => {
+    try {
+      setUser(dummyUser);
+      setDriverProfile(dummyProfile);
+      await AsyncStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(dummyProfile));
+    } catch (e) {
+      console.error('Login as dummy error:', e);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, driverProfile, loading, logout, updateProfile }}>
+    <AuthContext.Provider value={{ user, driverProfile, loading, logout, updateProfile, loginAsDummy }}>
       {children}
     </AuthContext.Provider>
   );

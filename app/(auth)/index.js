@@ -1,15 +1,62 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { theme } from '../../src/styles/theme';
 import { Truck } from 'lucide-react-native';
+import { useAuth } from '../../src/context/AuthContext';
+
+const DUMMY_USERS = [
+  {
+    id: 'solo',
+    label: 'Solo Driver',
+    user: { uid: 'dummy_solo_123', phoneNumber: '+919000000001' },
+    profile: {
+      fullName: 'Raj Kumar',
+      phone: '+919000000001',
+      userType: 'SOLO_DRIVER',
+      vehicles: [{ vehicleType: 'TATA_ACE', vehicleRegNo: 'TN38CD5678', driverName: '', driverPhone: '' }],
+      homeCity: 'Chennai',
+      homeState: 'TN',
+      upiId: 'rajkumar@upi',
+      isProfileComplete: true,
+      status: 'VERIFIED'
+    }
+  },
+  {
+    id: 'transporter',
+    label: 'Transporter (Fleet)',
+    user: { uid: 'dummy_fleet_456', phoneNumber: '+919000000002' },
+    profile: {
+      fullName: 'KKP Logistics',
+      phone: '+919000000002',
+      userType: 'TRANSPORTER',
+      vehicles: [
+        { vehicleType: 'ASHOK_LEYLAND_DOST', vehicleRegNo: 'TN02CD1234', driverName: 'Suresh', driverPhone: '9000000003' },
+        { vehicleType: 'EICHER_14FT', vehicleRegNo: 'TN03EF5678', driverName: 'Ramesh', driverPhone: '9000000004' }
+      ],
+      homeCity: 'Coimbatore',
+      homeState: 'TN',
+      upiId: 'kkplogistics@upi',
+      isProfileComplete: true,
+      status: 'VERIFIED'
+    }
+  }
+];
 
 export default function LoginScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const { loginAsDummy } = useAuth();
+
+  const handleDummyLogin = async (dummy) => {
+    setLoading(true);
+    await loginAsDummy(dummy.user, dummy.profile);
+    setLoading(false);
+    router.replace('/(tabs)');
+  };
 
   const handleSendOtp = async () => {
     // Basic validation
@@ -42,8 +89,9 @@ export default function LoginScreen() {
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.content}
+        style={{ flex: 1 }}
       >
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerContainer}>
           <View style={styles.logoContainer}>
             <Truck size={48} color={theme.colors.surface} />
@@ -85,6 +133,18 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
         </View>
+
+        {__DEV__ && (
+          <View style={styles.devContainer}>
+            <Text style={styles.devTitle}>🛠 Dev Mode: Quick Login</Text>
+            {DUMMY_USERS.map(dummy => (
+              <TouchableOpacity key={dummy.id} style={styles.devBtn} onPress={() => handleDummyLogin(dummy)} disabled={loading}>
+                <Text style={styles.devBtnText}>Login as {dummy.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -96,7 +156,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     padding: theme.spacing.lg,
   },
@@ -183,5 +243,31 @@ const styles = StyleSheet.create({
   buttonText: {
     ...theme.typography.buttonLarge,
     color: theme.colors.textInverse,
+  },
+  devContainer: {
+    marginTop: theme.spacing.xl,
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.primary + '40',
+    borderStyle: 'dashed',
+  },
+  devTitle: {
+    ...theme.typography.label,
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.sm,
+    textAlign: 'center',
+  },
+  devBtn: {
+    backgroundColor: theme.colors.primary + '15',
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
+    marginBottom: theme.spacing.sm,
+    alignItems: 'center',
+  },
+  devBtnText: {
+    ...theme.typography.bodySemiBold,
+    color: theme.colors.primaryDark,
   },
 });
