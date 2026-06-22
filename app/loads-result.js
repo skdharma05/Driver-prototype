@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, ScrollView, FlatList,
   TouchableOpacity, StyleSheet
@@ -10,6 +10,7 @@ import TruckIcon from '../src/components/TruckIcon';
 
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { DUMMY_LOADS } from '../src/constants/dummyLoads';
+import { fetchAllLoads } from '../src/services/loads';
 
 const CATEGORIES = [
   { id: 'open',       label: 'Open',       icon: '🚛', tons: '7.5 - 43 Ton' },
@@ -29,12 +30,35 @@ const LoadsResultScreen = () => {
   const [activeCategory,  setActiveCategory]  = useState(null);
   const [activeFilter,    setActiveFilter]    = useState(null);
 
+  // Loads from Firestore, with local dummy data as the initial fallback.
+  const [loads, setLoads] = useState(DUMMY_LOADS);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const remote = await fetchAllLoads();
+        // Use Firestore data only if it returned actual rows; otherwise
+        // keep the dummy fallback (covers empty DB / Firebase not configured).
+        if (remote && remote.length > 0) {
+          console.log(`[loads] ✓ loaded ${remote.length} loads from Firestore`);
+          if (!cancelled) setLoads(remote);
+        } else {
+          console.log('[loads] ⚠ using DUMMY fallback (Firebase null/empty):', remote === null ? 'db not configured' : 'empty collection');
+        }
+      } catch (e) {
+        console.log('[loads] Firestore fetch failed, using dummy data:', e?.message);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   // Filter by selected city
   const cityLoads = useMemo(() => {
-    return DUMMY_LOADS.filter(load =>
+    return loads.filter(load =>
       load.pickupCity.toLowerCase().includes(fromCity.toLowerCase())
     );
-  }, [fromCity]);
+  }, [loads, fromCity]);
 
   // Filter loads by selected city + vehicle type
   const filteredLoads = useMemo(() => {

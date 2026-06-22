@@ -2,11 +2,12 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import MapView, { Marker, Polyline, PROVIDER_DEFAULT, UrlTile } from 'react-native-maps';
+import OSMMap from '../../../src/components/OSMMap';
 import { theme } from '../../../src/styles/theme';
 import { ChevronLeft, MapPin, Calendar, Weight, Truck } from 'lucide-react-native';
 import { calculateMarketRate } from '../../../src/utils/marketRate';
-import { DUMMY_LOADS } from '../../../src/constants/dummyData';
+import { DUMMY_LOADS } from '../../../src/constants/dummyLoads';
+import { fetchLoadById } from '../../../src/services/loads';
 import { saveBid } from '../../../src/utils/bidStore';
 
 export default function LoadDetailScreen() {
@@ -16,14 +17,58 @@ export default function LoadDetailScreen() {
 
   const [offerAmount, setOfferAmount] = useState('');
   const [loading, setLoading] = useState(false);
+  const [load, setLoad] = useState(null);
+  const [loadingLoad, setLoadingLoad] = useState(true);
 
-  // Fetch load based on id
-  const load = DUMMY_LOADS.find(l => l.id === id) || DUMMY_LOADS[0];
+  // Fetch the load from Firestore by loadId; fall back to local data.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const remote = await fetchLoadById(id);
+        const found = remote || DUMMY_LOADS.find(l => l.loadId === id) || null;
+        if (!cancelled) setLoad(found);
+      } catch (e) {
+        console.log('[load] Firestore fetch failed, using local data:', e?.message);
+        if (!cancelled) setLoad(DUMMY_LOADS.find(l => l.loadId === id) || null);
+      } finally {
+        if (!cancelled) setLoadingLoad(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [id]);
 
-  const marketRate = calculateMarketRate(load.distance, load.vehicle);
+  if (loadingLoad) {
+    return (
+      <SafeAreaView style={[styles.container, styles.centerFill]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </SafeAreaView>
+    );
+  }
 
-  const pickupCoords = { latitude: load.pickupLat, longitude: load.pickupLng };
-  const dropCoords = { latitude: load.dropLat, longitude: load.dropLng };
+  if (!load) {
+    return (
+      <SafeAreaView style={[styles.container, styles.centerFill]}>
+        <Text style={styles.notFoundText}>Load not found.</Text>
+        <TouchableOpacity style={styles.notFoundBtn} onPress={() => router.back()}>
+          <Text style={styles.submitOfferText}>Go Back</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
+  // Derived values (with fallbacks for fields the canonical load may omit).
+  const distanceText = load.distance != null ? `${load.distance} km` : '';
+  const marketRate = calculateMarketRate(load.distance || 0, load.vehicleType);
+  const bidsCount = load.bidsCount ?? load.totalBidsCount ?? 0;
+  const isRevealed = load.status === 'accepted' || load.status === 'ASSIGNED';
+  const instructions = load.instructions || 'No special instructions provided.';
+
+  const hasCoords =
+    load.pickupLat != null && load.pickupLng != null &&
+    load.dropLat != null && load.dropLng != null;
+  const pickupCoords = hasCoords ? { latitude: load.pickupLat, longitude: load.pickupLng } : null;
+  const dropCoords = hasCoords ? { latitude: load.dropLat, longitude: load.dropLng } : null;
 
   const handleSubmitOffer = () => {
     const amount = parseInt(offerAmount);
@@ -57,16 +102,19 @@ export default function LoadDetailScreen() {
     try {
       const newBid = {
         bidId: `bid_${Date.now()}`,
-        loadId: load.id,
+        loadId: load.loadId,
         amount,
         status: 'pending',
+        // ISO string: this bid is persisted to AsyncStorage (local JSON), where a
+        // Firestore Timestamp can't be serialized. Switch to serverTimestamp()
+        // if/when bids are written to the Firestore `bids` collection.
         submittedAt: new Date().toISOString(),
         load: {
-          pickupCity: load.pickup,
-          dropCity: load.drop,
-          pickupDate: load.date,
-          vehicleType: load.vehicle,
-          distanceText: load.distanceText,
+          pickupCity: load.pickupCity,
+          dropCity: load.dropCity,
+          pickupDate: load.pickupDate,
+          vehicleType: load.vehicleType,
+          distanceText,
         },
       };
       await saveBid(newBid);
@@ -96,54 +144,48 @@ export default function LoadDetailScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         
-        {/* Map Preview */}
+        {/* Map Preview — tap to open Google Maps directions */}
+        {hasCoords && (
         <View style={styles.mapContainer}>
-          <MapView
-            provider="google"
-            style={styles.map}
-            initialRegion={{
-              latitude: (pickupCoords.latitude + dropCoords.latitude) / 2,
-              longitude: (pickupCoords.longitude + dropCoords.longitude) / 2,
-              latitudeDelta: Math.abs(pickupCoords.latitude - dropCoords.latitude) + 1,
-              longitudeDelta: Math.abs(pickupCoords.longitude - dropCoords.longitude) + 1,
-            }}
-            scrollEnabled={false}
-          >
-            <Marker coordinate={pickupCoords} title="Pickup" pinColor="green" />
-            <Marker coordinate={dropCoords} title="Drop" pinColor="red" />
-            <Polyline coordinates={[pickupCoords, dropCoords]} strokeColor={theme.colors.accentDark} strokeWidth={3} />
-          </MapView>
-          <View style={styles.distanceBadge}>
+          <OSMMap
+            pickup={pickupCoords}
+            drop={dropCoords}
+            pickupLabel={`Pickup: ${load.pickupCity}`}
+            dropLabel={`Drop: ${load.dropCity}`}
+            tapTarget="both"
+          />
+          <View style={styles.distanceBadge} pointerEvents="none">
              <Truck size={14} color={theme.colors.textInverse} />
-             <Text style={styles.distanceText}>{load.distanceText}</Text>
+             <Text style={styles.distanceText}>{distanceText}</Text>
           </View>
         </View>
+        )}
 
         {/* Addresses */}
         <View style={styles.section}>
           <View style={styles.locationRow}>
              <MapPin size={20} color={theme.colors.success} />
              <View style={styles.locationInfo}>
-               <Text style={styles.locationTitle}>Pickup: {load.pickup}</Text>
-               {load.status === 'accepted' ? (
-                 <Text style={styles.locationSubtitle}>{load.pickupAddress}</Text>
+               <Text style={styles.locationTitle}>Pickup: {load.pickupCity}</Text>
+               {isRevealed ? (
+                 <Text style={styles.locationSubtitle}>{load.pickupFullAddress}</Text>
                ) : (
                  <Text style={styles.addressMasked}>🔒 Full address revealed after acceptance</Text>
                )}
-               <Text style={styles.dateText}>{load.date}</Text>
+               <Text style={styles.dateText}>{load.pickupDate}</Text>
              </View>
           </View>
           <View style={styles.routeLine} />
           <View style={styles.locationRow}>
              <MapPin size={20} color={theme.colors.error} />
              <View style={styles.locationInfo}>
-               <Text style={styles.locationTitle}>Drop: {load.drop}</Text>
-               {load.status === 'accepted' ? (
-                 <Text style={styles.locationSubtitle}>{load.dropAddress}</Text>
+               <Text style={styles.locationTitle}>Drop: {load.dropCity}</Text>
+               {isRevealed ? (
+                 <Text style={styles.locationSubtitle}>{load.dropFullAddress}</Text>
                ) : (
                  <Text style={styles.addressMasked}>🔒 Full address revealed after acceptance</Text>
                )}
-               <Text style={styles.dateText}>Expected: {load.expectedDelivery}</Text>
+               <Text style={styles.dateText}>Expected: {load.expectedDelivery || '—'}</Text>
              </View>
           </View>
         </View>
@@ -154,28 +196,28 @@ export default function LoadDetailScreen() {
               <Weight size={18} color={theme.colors.textSecondary} />
               <View style={styles.gridTextContainer}>
                 <Text style={styles.gridLabel}>Weight</Text>
-                <Text style={styles.gridValue} numberOfLines={2}>{load.weight}</Text>
+                <Text style={styles.gridValue} numberOfLines={2}>{load.weight} Tons</Text>
               </View>
             </View>
             <View style={styles.gridItem}>
               <Truck size={18} color={theme.colors.textSecondary} />
               <View style={styles.gridTextContainer}>
                 <Text style={styles.gridLabel}>Vehicle</Text>
-                <Text style={styles.gridValue} numberOfLines={2}>{load.vehicle}</Text>
+                <Text style={styles.gridValue} numberOfLines={2}>{load.vehicleType}</Text>
               </View>
             </View>
             <View style={styles.gridItem}>
               <MapPin size={18} color={theme.colors.textSecondary} />
               <View style={styles.gridTextContainer}>
                 <Text style={styles.gridLabel}>Goods</Text>
-                <Text style={styles.gridValue} numberOfLines={2}>{load.goods}</Text>
+                <Text style={styles.gridValue} numberOfLines={2}>{load.goodsType}</Text>
               </View>
             </View>
             <View style={styles.gridItem}>
               <Truck size={18} color={theme.colors.primary} />
               <View style={styles.gridTextContainer}>
                 <Text style={styles.gridLabel}>Bids Count</Text>
-                <Text style={[styles.gridValue, {color: theme.colors.primary}]} numberOfLines={2}>{load.totalBidsCount} offers</Text>
+                <Text style={[styles.gridValue, {color: theme.colors.primary}]} numberOfLines={2}>{bidsCount} offers</Text>
               </View>
             </View>
         </View>
@@ -188,14 +230,14 @@ export default function LoadDetailScreen() {
            </View>
            <Text style={styles.marketPrice}>₹{marketRate.min.toLocaleString()} – ₹{marketRate.max.toLocaleString()}</Text>
            <Text style={styles.marketSubtext}>
-             Based on route distance ({load.distanceText}) and {load.vehicle} type.
+             Based on route distance ({distanceText}) and {load.vehicleType} type.
            </Text>
         </View>
 
         {/* Instructions */}
         <View style={styles.noteBox}>
            <Text style={styles.noteTitle}>Special Instructions</Text>
-           <Text style={styles.noteText}>{load.instructions}</Text>
+           <Text style={styles.noteText}>{instructions}</Text>
         </View>
 
         {/* Offer Input Section */}
@@ -229,9 +271,11 @@ export default function LoadDetailScreen() {
       <View style={[styles.stickyFooter, { paddingBottom: insets.bottom + 12 }]}>
         <View style={styles.footerInfo}>
           <Calendar size={16} color={theme.colors.error} />
-          <Text style={styles.timeRemaining}>{load.timeRemaining} remaining</Text>
+          <Text style={styles.timeRemaining}>
+            {load.timeRemaining ? `${load.timeRemaining} remaining` : 'Open for bids'}
+          </Text>
         </View>
-        <Text style={styles.bidCountText}>{load.totalBidsCount} total offers received</Text>
+        <Text style={styles.bidCountText}>{bidsCount} total offers received</Text>
       </View>
 
     </SafeAreaView>
@@ -240,6 +284,14 @@ export default function LoadDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
+  centerFill: { justifyContent: 'center', alignItems: 'center', padding: theme.spacing.lg },
+  notFoundText: { ...theme.typography.body, color: theme.colors.textSecondary, marginBottom: 16 },
+  notFoundBtn: {
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: 24, height: 48,
+    borderRadius: theme.borderRadius.md,
+    alignItems: 'center', justifyContent: 'center',
+  },
   header: {
     flexDirection: 'row', alignItems: 'center',
     padding: theme.spacing.md, backgroundColor: theme.colors.primary,

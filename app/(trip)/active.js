@@ -2,7 +2,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
+import OSMMap from '../../src/components/OSMMap';
 import { theme } from '../../src/styles/theme';
 import { MapPin, Phone, CheckCircle2, Camera } from 'lucide-react-native';
 
@@ -132,22 +132,16 @@ export default function ActiveTripScreen() {
         {renderProgressBar()}
       </View>
 
-      {/* Map Section (OpenStreetMap mapping via default props) */}
+      {/* Map Section — tap to open Google Maps directions (pickup → drop) */}
       <View style={styles.mapContainer}>
-        <MapView
-          provider="google"
-          style={styles.map}
-          initialRegion={{
-            latitude: (pickupCoords.latitude + dropCoords.latitude) / 2,
-            longitude: (pickupCoords.longitude + dropCoords.longitude) / 2,
-            latitudeDelta: 3.5,
-            longitudeDelta: 3.5,
-          }}
-        >
-          <Marker coordinate={pickupCoords} title="Pickup" pinColor="green" />
-          <Marker coordinate={dropCoords} title="Drop" pinColor="red" />
-          <Polyline coordinates={routeCoords} strokeColor={theme.colors.accentDark} strokeWidth={4} />
-        </MapView>
+        <OSMMap
+          pickup={pickupCoords}
+          drop={dropCoords}
+          route={routeCoords}
+          pickupLabel="Chennai Pickup"
+          dropLabel="Bengaluru Drop"
+          tapTarget="both"
+        />
       </View>
 
       <ScrollView style={styles.detailsContainer}>

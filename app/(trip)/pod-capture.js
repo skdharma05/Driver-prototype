@@ -150,7 +150,7 @@ export default function PodCaptureScreen() {
       ]);
     }, 1500);
   };
-
+  
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: 12 + insets.top }]}>
