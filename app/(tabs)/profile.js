@@ -1,14 +1,19 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 import { useRouter } from 'expo-router';
 import { theme } from '../../src/styles/theme';
-import { User, ShieldCheck, MapPin, Star, Settings, LogOut, FileText, Banknote, ChevronRight, AlertCircle, Phone } from 'lucide-react-native';
+import { User, ShieldCheck, MapPin, Star, Settings, LogOut, FileText, Banknote, ChevronRight, AlertCircle, Phone, Languages, Check } from 'lucide-react-native';
+
+const LANGUAGES = ['English', 'Hindi', 'Tamil', 'Telugu', 'Malayalam', 'Kannada'];
 
 export default function ProfileScreen() {
   const { user, driverProfile, logout } = useAuth();
   const router = useRouter();
+
+  const [language, setLanguage] = useState('English');
+  const [langModalVisible, setLangModalVisible] = useState(false);
 
   const profile = {
     fullName: driverProfile?.fullName || 'New Driver',
@@ -140,6 +145,13 @@ export default function ProfileScreen() {
               <Text style={styles.menuText}>App Settings</Text>
               <ChevronRight size={20} color={theme.colors.border} />
            </TouchableOpacity>
+
+           <TouchableOpacity style={styles.menuItem} onPress={() => setLangModalVisible(true)}>
+              <View style={styles.menuIconBox}><Languages size={20} color={theme.colors.primary} /></View>
+              <Text style={styles.menuText}>Language</Text>
+              <Text style={styles.menuValue}>{language}</Text>
+              <ChevronRight size={20} color={theme.colors.border} />
+           </TouchableOpacity>
         </View>
 
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
@@ -149,6 +161,36 @@ export default function ProfileScreen() {
 
         <View style={{height: 40}} />
       </ScrollView>
+
+      {/* Language Selector Modal */}
+      <Modal
+        visible={langModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setLangModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setLangModalVisible(false)}
+        >
+          <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
+            <Text style={styles.modalTitle}>Select Language</Text>
+            {LANGUAGES.map(lang => (
+              <TouchableOpacity
+                key={lang}
+                style={styles.langOption}
+                onPress={() => { setLanguage(lang); setLangModalVisible(false); }}
+              >
+                <Text style={[styles.langOptionText, language === lang && styles.langOptionTextActive]}>
+                  {lang}
+                </Text>
+                {language === lang && <Check size={20} color={theme.colors.primary} />}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -198,6 +240,7 @@ const styles = StyleSheet.create({
   },
   menuIconBox: { width: 36, height: 36, borderRadius: 18, backgroundColor: theme.colors.primary + '10', alignItems: 'center', justifyContent: 'center', marginRight: theme.spacing.md },
   menuText: { flex: 1, ...theme.typography.bodyMedium, color: theme.colors.text },
+  menuValue: { ...theme.typography.small, color: theme.colors.textSecondary, marginRight: 6 },
   warningBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FEF3C7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, marginRight: 8 },
   warningText: { ...theme.typography.small, color: '#92400E' },
   logoutBtn: {
@@ -220,4 +263,19 @@ const styles = StyleSheet.create({
   fleetTypeText: { ...theme.typography.small, color: theme.colors.primary, backgroundColor: theme.colors.primary + '10', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   driverInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   driverText: { ...theme.typography.bodyMedium, color: theme.colors.textSecondary },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  modalSheet: {
+    backgroundColor: theme.colors.surface,
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.lg, paddingBottom: 32,
+  },
+  modalTitle: { ...theme.typography.h3, color: theme.colors.text, marginBottom: theme.spacing.sm },
+  langOption: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: theme.colors.borderLight,
+  },
+  langOptionText: { ...theme.typography.body, color: theme.colors.text },
+  langOptionTextActive: { color: theme.colors.primary, fontWeight: '700' },
 });

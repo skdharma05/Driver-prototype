@@ -26,7 +26,10 @@ export const DUMMY_LOADS = [
     instructions: 'Requires secure covering. Fast transit needed.',
     totalBidsCount: 12,
     timeRemaining: '2h 15m',
-    status: 'pending'
+    status: 'pending',
+    agentName: 'Suresh Reddy',
+    agentPhone: '+919876500001',
+    agentLanguage: 'Tamil'
   },
   {
     id: 'L002',
@@ -48,7 +51,10 @@ export const DUMMY_LOADS = [
     instructions: 'Keep dry. Avoid rain.',
     totalBidsCount: 5,
     timeRemaining: '4h 30m',
-    status: 'pending'
+    status: 'pending',
+    agentName: 'Anil Kumar',
+    agentPhone: '+919876500002',
+    agentLanguage: 'Telugu'
   },
   {
     id: 'L003',
@@ -70,7 +76,10 @@ export const DUMMY_LOADS = [
     instructions: 'Handle with care.',
     totalBidsCount: 22,
     timeRemaining: '1h 05m',
-    status: 'pending'
+    status: 'pending',
+    agentName: 'Mohan Das',
+    agentPhone: '+919876500003',
+    agentLanguage: 'Malayalam'
   }
 ];
 
