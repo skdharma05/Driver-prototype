@@ -6,6 +6,8 @@ import {
 import { ChevronRight, MapPin } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useLanguage } from '../../src/context/LanguageContext';
+import { haptics } from '../../src/utils/haptics';
 
 // City hubs with their sub-cities
 const CITY_HUBS = [
@@ -46,14 +48,15 @@ const CITY_HUBS = [
 const LoadsHomeScreen = () => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { t } = useLanguage();
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F0F4F8' }}>
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) }]}>
-        <Text style={styles.headerTitle}>Loads</Text>
-        <Text style={styles.headerSub}>Select your pickup location</Text>
+        <Text style={styles.headerTitle}>{t('loadsHub.title')}</Text>
+        <Text style={styles.headerSub}>{t('loadsHub.subtitle')}</Text>
       </View>
 
       {/* City Hub List */}
@@ -61,14 +64,14 @@ const LoadsHomeScreen = () => {
 
         <View style={styles.sectionHeader}>
           <MapPin size={16} color="#1E3A8A" />
-          <Text style={styles.sectionTitle}>Loads From</Text>
+          <Text style={styles.sectionTitle}>{t('loadsHub.loadsFrom')}</Text>
         </View>
 
         {CITY_HUBS.map((hub) => (
           <TouchableOpacity
             key={hub.city}
             style={styles.cityCard}
-            onPress={() => router.push({ pathname: '/loads-result', params: { fromCity: hub.city } })}
+            onPress={() => { haptics.select(); router.push({ pathname: '/loads-result', params: { fromCity: hub.city } }); }}
             activeOpacity={0.75}
           >
             <View style={styles.cityCardContent}>

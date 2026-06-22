@@ -6,11 +6,14 @@ import MapView, { Marker, Polyline, PROVIDER_DEFAULT, UrlTile } from 'react-nati
 import { theme } from '../../../src/styles/theme';
 import { ChevronLeft, MapPin, Calendar, Weight, Truck, User, Phone, PhoneCall, Languages } from 'lucide-react-native';
 import { DUMMY_LOADS } from '../../../src/constants/dummyData';
+import { useLanguage } from '../../../src/context/LanguageContext';
+import { haptics } from '../../../src/utils/haptics';
 
 export default function LoadDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
 
   // Fetch load based on id
   const load = DUMMY_LOADS.find(l => l.id === id) || DUMMY_LOADS[0];
@@ -20,11 +23,12 @@ export default function LoadDetailScreen() {
 
   const handleCallAgent = () => {
     if (!load.agentPhone) {
-      Alert.alert('No Contact', 'Agent contact number is not available for this load.');
+      Alert.alert(t('detail.noContactTitle'), t('detail.noContact'));
       return;
     }
+    haptics.light();
     Linking.openURL(`tel:${load.agentPhone}`).catch(() =>
-      Alert.alert('Unable to Call', 'Could not open the dialer on this device.')
+      Alert.alert(t('detail.callFailTitle'), t('detail.callFail'))
     );
   };
 
@@ -34,7 +38,7 @@ export default function LoadDetailScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <ChevronLeft size={28} color={theme.colors.textInverse} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Load Details</Text>
+        <Text style={styles.headerTitle}>{t('detail.title')}</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -67,11 +71,11 @@ export default function LoadDetailScreen() {
           <View style={styles.locationRow}>
              <MapPin size={20} color={theme.colors.success} />
              <View style={styles.locationInfo}>
-               <Text style={styles.locationTitle}>Pickup: {load.pickup}</Text>
+               <Text style={styles.locationTitle}>{t('detail.pickup')}: {load.pickup}</Text>
                {load.status === 'accepted' ? (
                  <Text style={styles.locationSubtitle}>{load.pickupAddress}</Text>
                ) : (
-                 <Text style={styles.addressMasked}>🔒 Full address revealed after acceptance</Text>
+                 <Text style={styles.addressMasked}>{t('detail.masked')}</Text>
                )}
                <Text style={styles.dateText}>{load.date}</Text>
              </View>
@@ -80,13 +84,13 @@ export default function LoadDetailScreen() {
           <View style={styles.locationRow}>
              <MapPin size={20} color={theme.colors.error} />
              <View style={styles.locationInfo}>
-               <Text style={styles.locationTitle}>Drop: {load.drop}</Text>
+               <Text style={styles.locationTitle}>{t('detail.drop')}: {load.drop}</Text>
                {load.status === 'accepted' ? (
                  <Text style={styles.locationSubtitle}>{load.dropAddress}</Text>
                ) : (
-                 <Text style={styles.addressMasked}>🔒 Full address revealed after acceptance</Text>
+                 <Text style={styles.addressMasked}>{t('detail.masked')}</Text>
                )}
-               <Text style={styles.dateText}>Expected: {load.expectedDelivery}</Text>
+               <Text style={styles.dateText}>{t('detail.expected')} {load.expectedDelivery}</Text>
              </View>
           </View>
         </View>
@@ -96,50 +100,50 @@ export default function LoadDetailScreen() {
             <View style={styles.gridItem}>
               <Weight size={18} color={theme.colors.textSecondary} />
               <View style={styles.gridTextContainer}>
-                <Text style={styles.gridLabel}>Weight</Text>
+                <Text style={styles.gridLabel}>{t('detail.weight')}</Text>
                 <Text style={styles.gridValue} numberOfLines={2}>{load.weight}</Text>
               </View>
             </View>
             <View style={styles.gridItem}>
               <Truck size={18} color={theme.colors.textSecondary} />
               <View style={styles.gridTextContainer}>
-                <Text style={styles.gridLabel}>Vehicle</Text>
+                <Text style={styles.gridLabel}>{t('detail.vehicle')}</Text>
                 <Text style={styles.gridValue} numberOfLines={2}>{load.vehicle}</Text>
               </View>
             </View>
             <View style={styles.gridItem}>
               <MapPin size={18} color={theme.colors.textSecondary} />
               <View style={styles.gridTextContainer}>
-                <Text style={styles.gridLabel}>Goods</Text>
+                <Text style={styles.gridLabel}>{t('detail.goods')}</Text>
                 <Text style={styles.gridValue} numberOfLines={2}>{load.goods}</Text>
               </View>
             </View>
             <View style={styles.gridItem}>
               <Truck size={18} color={theme.colors.primary} />
               <View style={styles.gridTextContainer}>
-                <Text style={styles.gridLabel}>Bids Count</Text>
-                <Text style={[styles.gridValue, {color: theme.colors.primary}]} numberOfLines={2}>{load.totalBidsCount} offers</Text>
+                <Text style={styles.gridLabel}>{t('detail.bidsCount')}</Text>
+                <Text style={[styles.gridValue, {color: theme.colors.primary}]} numberOfLines={2}>{load.totalBidsCount} {t('detail.offers')}</Text>
               </View>
             </View>
         </View>
 
         {/* Instructions */}
         <View style={styles.noteBox}>
-           <Text style={styles.noteTitle}>Special Instructions</Text>
+           <Text style={styles.noteTitle}>{t('detail.instructions')}</Text>
            <Text style={styles.noteText}>{load.instructions}</Text>
         </View>
 
         {/* Agent Details Section */}
         <View style={styles.agentSection}>
-          <Text style={styles.agentSectionTitle}>Agent Details</Text>
+          <Text style={styles.agentSectionTitle}>{t('detail.agentDetails')}</Text>
 
           <View style={styles.agentRow}>
             <View style={styles.agentIconBox}>
               <User size={18} color={theme.colors.primary} />
             </View>
             <View style={styles.agentTextCol}>
-              <Text style={styles.agentLabel}>Agent Name</Text>
-              <Text style={styles.agentValue}>{load.agentName || 'Not available'}</Text>
+              <Text style={styles.agentLabel}>{t('detail.agentName')}</Text>
+              <Text style={styles.agentValue}>{load.agentName || t('detail.notAvailable')}</Text>
             </View>
           </View>
 
@@ -150,12 +154,12 @@ export default function LoadDetailScreen() {
               <Phone size={18} color={theme.colors.primary} />
             </View>
             <View style={styles.agentTextCol}>
-              <Text style={styles.agentLabel}>Contact Number</Text>
-              <Text style={styles.agentValue}>{load.agentPhone || 'Not available'}</Text>
+              <Text style={styles.agentLabel}>{t('detail.contactNumber')}</Text>
+              <Text style={styles.agentValue}>{load.agentPhone || t('detail.notAvailable')}</Text>
             </View>
             <TouchableOpacity style={styles.callBtn} onPress={handleCallAgent} activeOpacity={0.8}>
               <PhoneCall size={16} color={theme.colors.textInverse} />
-              <Text style={styles.callBtnText}>Call</Text>
+              <Text style={styles.callBtnText}>{t('loads.call')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -166,8 +170,8 @@ export default function LoadDetailScreen() {
               <Languages size={18} color={theme.colors.primary} />
             </View>
             <View style={styles.agentTextCol}>
-              <Text style={styles.agentLabel}>Preferred Language</Text>
-              <Text style={styles.agentValue}>{load.agentLanguage || 'Not available'}</Text>
+              <Text style={styles.agentLabel}>{t('detail.preferredLanguage')}</Text>
+              <Text style={styles.agentValue}>{load.agentLanguage || t('detail.notAvailable')}</Text>
             </View>
           </View>
         </View>
@@ -177,9 +181,9 @@ export default function LoadDetailScreen() {
       <View style={[styles.stickyFooter, { paddingBottom: insets.bottom + 12 }]}>
         <View style={styles.footerInfo}>
           <Calendar size={16} color={theme.colors.error} />
-          <Text style={styles.timeRemaining}>{load.timeRemaining} remaining</Text>
+          <Text style={styles.timeRemaining}>{t('detail.remaining', { time: load.timeRemaining })}</Text>
         </View>
-        <Text style={styles.bidCountText}>{load.totalBidsCount} total offers received</Text>
+        <Text style={styles.bidCountText}>{t('detail.totalOffers', { count: load.totalBidsCount })}</Text>
       </View>
 
     </SafeAreaView>

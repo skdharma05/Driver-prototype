@@ -10,6 +10,8 @@ import TruckIcon from '../src/components/TruckIcon';
 
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { DUMMY_LOADS } from '../src/constants/dummyLoads';
+import { useLanguage } from '../src/context/LanguageContext';
+import { haptics } from '../src/utils/haptics';
 
 const CATEGORIES = [
   { id: 'open',       label: 'Open',       icon: '🚛', tons: '7.5 - 43 Ton' },
@@ -24,6 +26,7 @@ const LoadsResultScreen = () => {
   const { fromCity = 'Chennai' } = useLocalSearchParams();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
   
   const [sheetVisible,    setSheetVisible]    = useState(false);
   const [activeCategory,  setActiveCategory]  = useState(null);
@@ -58,6 +61,7 @@ const LoadsResultScreen = () => {
     cityLoads.filter(l => l.vehicleCategory === categoryId).length;
 
   const handleCategoryTap = (categoryId) => {
+    haptics.select();
     setActiveCategory(categoryId);
     setSheetVisible(true);
   };
@@ -65,6 +69,12 @@ const LoadsResultScreen = () => {
   const handleFilterSelect = (filter) => {
     setActiveFilter(filter);
     setSheetVisible(false);
+  };
+
+  const handleCitySelect = (city) => {
+    haptics.select();
+    setSelectedDropCity(city);
+    setCityModalVisible(false);
   };
 
   return (
@@ -76,12 +86,12 @@ const LoadsResultScreen = () => {
           <ArrowLeft size={22} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>{fromCity} → {selectedDropCity || 'Anywhere'}</Text>
-          <Text style={styles.headerSub}>{filteredLoads.length} loads available</Text>
+          <Text style={styles.headerTitle}>{fromCity} → {selectedDropCity || t('loads.anywhere')}</Text>
+          <Text style={styles.headerSub}>{t('loads.available', { count: filteredLoads.length })}</Text>
         </View>
         <TouchableOpacity
           style={styles.filterBtn}
-          onPress={() => setCityModalVisible(true)}
+          onPress={() => { haptics.select(); setCityModalVisible(true); }}
           activeOpacity={0.7}
         >
           <Filter size={20} color="#fff" />
@@ -93,8 +103,8 @@ const LoadsResultScreen = () => {
       {selectedDropCity && (
         <View style={styles.activeFilterBar}>
           <View style={styles.activeFilterChip}>
-            <Text style={styles.activeFilterText}>To: {selectedDropCity}</Text>
-            <TouchableOpacity onPress={() => setSelectedDropCity(null)} hitSlop={8}>
+            <Text style={styles.activeFilterText}>{t('loads.to')} {selectedDropCity}</Text>
+            <TouchableOpacity onPress={() => { haptics.select(); setSelectedDropCity(null); }} hitSlop={8}>
               <X size={14} color="#1E3A8A" />
             </TouchableOpacity>
           </View>
@@ -125,7 +135,7 @@ const LoadsResultScreen = () => {
                 styles.categoryChipLabel,
                 activeCategory === cat.id && styles.categoryChipLabelActive
               ]}>
-                {cat.label}
+                {t('cat.' + cat.id)}
               </Text>
               <Text style={[
                 styles.categoryChipTons,
@@ -163,15 +173,15 @@ const LoadsResultScreen = () => {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>📦</Text>
-            <Text style={styles.emptyTitle}>No loads available</Text>
+            <Text style={styles.emptyTitle}>{t('loads.empty')}</Text>
             <Text style={styles.emptySub}>
-              No {activeFilter?.category ? activeFilter.category : ''} loads from {fromCity} right now.
+              {t('loads.emptySub')}
             </Text>
             <TouchableOpacity
-              onPress={() => { setActiveFilter(null); setActiveCategory(null); }}
+              onPress={() => { haptics.select(); setActiveFilter(null); setActiveCategory(null); }}
               style={styles.resetBtn}
             >
-              <Text style={styles.resetBtnText}>Show All Vehicle Types</Text>
+              <Text style={styles.resetBtnText}>{t('loads.showAll')}</Text>
             </TouchableOpacity>
           </View>
         }
@@ -191,7 +201,7 @@ const LoadsResultScreen = () => {
         >
           <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Filter by Destination City</Text>
+              <Text style={styles.modalTitle}>{t('loads.filterTitle')}</Text>
               <TouchableOpacity onPress={() => setCityModalVisible(false)} hitSlop={8}>
                 <X size={22} color="#6B7280" />
               </TouchableOpacity>
@@ -200,10 +210,10 @@ const LoadsResultScreen = () => {
             <ScrollView style={{ maxHeight: 380 }}>
               <TouchableOpacity
                 style={styles.cityOption}
-                onPress={() => { setSelectedDropCity(null); setCityModalVisible(false); }}
+                onPress={() => handleCitySelect(null)}
               >
                 <Text style={[styles.cityOptionText, !selectedDropCity && styles.cityOptionTextActive]}>
-                  All Cities
+                  {t('loads.allCities')}
                 </Text>
                 {!selectedDropCity && <Check size={18} color="#1E3A8A" />}
               </TouchableOpacity>
@@ -212,7 +222,7 @@ const LoadsResultScreen = () => {
                 <TouchableOpacity
                   key={city}
                   style={styles.cityOption}
-                  onPress={() => { setSelectedDropCity(city); setCityModalVisible(false); }}
+                  onPress={() => handleCitySelect(city)}
                 >
                   <Text style={[styles.cityOptionText, selectedDropCity === city && styles.cityOptionTextActive]}>
                     {city}
@@ -232,6 +242,7 @@ const LoadsResultScreen = () => {
 // ── Load Card ─────────────────────────────────────────
 const LoadCard = ({ load }) => {
   const router = useRouter();
+  const { t } = useLanguage();
   const [raised, setRaised] = useState(!!load.handRaised);
   const wave = useRef(new Animated.Value(0)).current;
 
@@ -248,12 +259,14 @@ const LoadCard = ({ load }) => {
   };
 
   const handleRaiseHand = () => {
+    haptics.medium();
     triggerWave();
     setRaised(prev => !prev);
   };
 
   const handleCallAgent = () => {
     if (!load.agentPhone) return;
+    haptics.light();
     Linking.openURL(`tel:${load.agentPhone}`).catch(() => {});
   };
 
@@ -273,7 +286,7 @@ const LoadCard = ({ load }) => {
     {/* NEW badge */}
     {load.isNew && (
       <View style={styles.newBadge}>
-        <Text style={styles.newBadgeText}>NEW</Text>
+        <Text style={styles.newBadgeText}>{t('loads.new')}</Text>
       </View>
     )}
 
@@ -308,13 +321,13 @@ const LoadCard = ({ load }) => {
     </View>
 
     {/* Status text shown once interest has been signaled */}
-    {raised && <Text style={styles.handRaisedText}>✋ Interest Sent</Text>}
+    {raised && <Text style={styles.handRaisedText}>✋ {t('loads.interestSent')}</Text>}
 
     <View style={styles.divider} />
 
     {/* Truck info */}
     <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>Truck Type</Text>
+      <Text style={styles.infoLabel}>{t('loads.truckType')}</Text>
       <View style={styles.truckTags}>
         <View style={styles.tag}>
           <Text style={styles.tagText}>🚛 {load.vehicleType}</Text>
@@ -331,16 +344,16 @@ const LoadCard = ({ load }) => {
     {/* Product + Payment */}
     <View style={styles.metaRow}>
       <View style={styles.metaCol}>
-        <Text style={styles.metaLabel}>Product</Text>
+        <Text style={styles.metaLabel}>{t('loads.product')}</Text>
         <Text style={styles.metaValue} numberOfLines={1}>{load.goodsType}</Text>
       </View>
       <View style={styles.metaCol}>
-        <Text style={styles.metaLabel}>Payment</Text>
+        <Text style={styles.metaLabel}>{t('loads.payment')}</Text>
         <Text style={styles.metaValue} numberOfLines={1}>{load.paymentTerms}</Text>
       </View>
       {load.paymentGuaranteed && (
         <View style={styles.guaranteeBadge}>
-          <Text style={styles.guaranteeText}>✅ PAYMENT{'\n'}GUARANTEED</Text>
+          <Text style={styles.guaranteeText}>✅ {t('loads.guaranteed')}</Text>
         </View>
       )}
     </View>
@@ -362,7 +375,7 @@ const LoadCard = ({ load }) => {
         hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
       >
         <PhoneCall size={15} color="#fff" />
-        <Text style={styles.callBtnText}>Call</Text>
+        <Text style={styles.callBtnText}>{t('loads.call')}</Text>
       </TouchableOpacity>
     </View>
 

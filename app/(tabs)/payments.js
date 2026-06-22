@@ -2,7 +2,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView } from 'react-native';
 import { theme } from '../../src/styles/theme';
-import { IndianRupee, Download, MapPin, Calendar, CheckCircle2, Clock } from 'lucide-react-native';
+import { Download, MapPin, CheckCircle2, Clock } from 'lucide-react-native';
+import { useLanguage } from '../../src/context/LanguageContext';
+import { haptics } from '../../src/utils/haptics';
 
 const DUMMY_PAYMENTS = [
   {
@@ -26,8 +28,10 @@ const DUMMY_PAYMENTS = [
 ];
 
 export default function PaymentsScreen() {
-  
+  const { t } = useLanguage();
+
   const handleDownload = () => {
+    haptics.light();
     // Basic mock for PDF Export
     alert('Earnings Statement PDF descending locally in a real app.');
   };
@@ -43,15 +47,15 @@ export default function PaymentsScreen() {
       </View>
 
       <View style={styles.totalRow}>
-        <Text style={styles.totalLabel}>Total Bid Amount</Text>
+        <Text style={styles.totalLabel}>{t('pay.totalBid')}</Text>
         <Text style={styles.totalValue}>₹{item.total.toLocaleString()}</Text>
       </View>
 
       <View style={styles.breakdownBox}>
          <View style={styles.breakdownRow}>
            <View>
-             <Text style={styles.breakdownLabel}>Advance (80%)</Text>
-             <Text style={styles.breakdownSub}>{item.advance.status === 'PAID' ? `Paid via ${item.advance.method}` : 'Pending'}</Text>
+             <Text style={styles.breakdownLabel}>{t('pay.advance')}</Text>
+             <Text style={styles.breakdownSub}>{item.advance.status === 'PAID' ? t('pay.paidVia', { method: item.advance.method }) : t('pay.pending')}</Text>
            </View>
            <View style={{alignItems: 'flex-end'}}>
              <Text style={styles.breakdownValue}>₹{item.advance.amount.toLocaleString()}</Text>
@@ -67,8 +71,8 @@ export default function PaymentsScreen() {
 
          <View style={styles.breakdownRow}>
            <View>
-             <Text style={styles.breakdownLabel}>Balance (20%)</Text>
-             <Text style={styles.breakdownSub}>{item.balance.status === 'PAID' ? `Paid via ${item.balance.method}` : 'Pending'}</Text>
+             <Text style={styles.breakdownLabel}>{t('pay.balance')}</Text>
+             <Text style={styles.breakdownSub}>{item.balance.status === 'PAID' ? t('pay.paidVia', { method: item.balance.method }) : t('pay.pending')}</Text>
            </View>
            <View style={{alignItems: 'flex-end'}}>
              <Text style={styles.breakdownValue}>₹{item.balance.amount.toLocaleString()}</Text>
@@ -89,7 +93,7 @@ export default function PaymentsScreen() {
           styles.statusBadgeText,
           item.paymentStatus === 'Fully Paid' ? styles.statusTextPaid : styles.statusTextPending
         ]}>
-          {item.paymentStatus}
+          {item.paymentStatus === 'Fully Paid' ? t('pay.fullyPaid') : t('pay.balancePending')}
         </Text>
       </View>
     </View>
@@ -98,10 +102,10 @@ export default function PaymentsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Earnings & Payments</Text>
+        <Text style={styles.headerTitle}>{t('pay.title')}</Text>
         <TouchableOpacity style={styles.downloadBtn} onPress={handleDownload}>
           <Download size={20} color={theme.colors.primary} />
-          <Text style={styles.downloadBtnText}>Statement</Text>
+          <Text style={styles.downloadBtnText}>{t('pay.statement')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -109,20 +113,20 @@ export default function PaymentsScreen() {
         {/* Summary Cards */}
         <View style={styles.summaryContainer}>
           <View style={styles.summaryBox}>
-            <Text style={styles.summaryLabel}>This Week</Text>
+            <Text style={styles.summaryLabel}>{t('pay.thisWeek')}</Text>
             <Text style={styles.summaryValue}>₹23,500</Text>
           </View>
           <View style={styles.summaryBox}>
-            <Text style={styles.summaryLabel}>This Month</Text>
+            <Text style={styles.summaryLabel}>{t('pay.thisMonth')}</Text>
             <Text style={styles.summaryValue}>₹85,200</Text>
           </View>
           <View style={[styles.summaryBox, { backgroundColor: theme.colors.primary }]}>
-            <Text style={[styles.summaryLabel, {color: theme.colors.textInverse, opacity: 0.8}]}>All Time</Text>
+            <Text style={[styles.summaryLabel, {color: theme.colors.textInverse, opacity: 0.8}]}>{t('pay.allTime')}</Text>
             <Text style={[styles.summaryValue, {color: theme.colors.textInverse}]}>₹4,12,500</Text>
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Transaction History</Text>
+        <Text style={styles.sectionTitle}>{t('pay.history')}</Text>
         
         {DUMMY_PAYMENTS.map(item => <PaymentCard key={item.id} item={item} />)}
         <View style={{height: 20}}/>

@@ -4,19 +4,22 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal } fr
 import { useAuth } from '../../src/context/AuthContext';
 import { useRouter } from 'expo-router';
 import { theme } from '../../src/styles/theme';
-import { User, ShieldCheck, MapPin, Star, Settings, LogOut, FileText, Banknote, ChevronRight, AlertCircle, Phone, Languages, Check } from 'lucide-react-native';
-
-const LANGUAGES = ['English', 'Hindi', 'Tamil', 'Telugu', 'Malayalam', 'Kannada'];
+import { User, ShieldCheck, Star, Settings, LogOut, FileText, Banknote, ChevronRight, AlertCircle, Phone, Languages, Check } from 'lucide-react-native';
+import { useLanguage } from '../../src/context/LanguageContext';
+import { LANGUAGES } from '../../src/i18n/translations';
+import { haptics } from '../../src/utils/haptics';
 
 export default function ProfileScreen() {
   const { user, driverProfile, logout } = useAuth();
   const router = useRouter();
+  const { language, setLanguage, t } = useLanguage();
 
-  const [language, setLanguage] = useState('English');
   const [langModalVisible, setLangModalVisible] = useState(false);
 
+  const currentLangLabel = LANGUAGES.find(l => l.code === language)?.label || 'English';
+
   const profile = {
-    fullName: driverProfile?.fullName || 'New Driver',
+    fullName: driverProfile?.fullName || t('profile.newDriver'),
     userType: driverProfile?.userType || 'SOLO_DRIVER',
     vehicleType: driverProfile?.vehicleType || 'Vehicle Info',
     vehicleRegNo: driverProfile?.vehicleRegNo || 'N/A',
@@ -33,13 +36,20 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', style: 'destructive', onPress: async () => {
+    haptics.medium();
+    Alert.alert(t('profile.logout'), t('profile.logoutConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('profile.logout'), style: 'destructive', onPress: async () => {
         await logout();
         router.replace('/(auth)');
       }}
     ]);
+  };
+
+  const handleSelectLanguage = (code) => {
+    haptics.select();
+    setLanguage(code);
+    setLangModalVisible(false);
   };
 
   return (
@@ -54,13 +64,13 @@ export default function ProfileScreen() {
           <View style={styles.profileInfo}>
             <Text style={styles.nameText}>{profile.fullName}</Text>
             <Text style={styles.vehicleText}>
-              {profile.userType === 'TRANSPORTER' 
-                ? `${profile.vehicles.length} Vehicles in Fleet` 
+              {profile.userType === 'TRANSPORTER'
+                ? t('profile.vehiclesInFleet', { count: profile.vehicles.length })
                 : `${primaryVehicle.vehicleRegNo} • ${primaryVehicle.vehicleType}`}
             </Text>
             <View style={styles.phoneRow}>
                <Phone size={14} color={theme.colors.textSecondary} />
-               <Text style={styles.phoneText}>{profile.phone || 'Phone not set'}</Text>
+               <Text style={styles.phoneText}>{profile.phone || t('profile.phoneNotSet')}</Text>
             </View>
           </View>
         </View>
@@ -69,24 +79,24 @@ export default function ProfileScreen() {
         <View style={styles.statusBox}>
            <ShieldCheck size={24} color={theme.colors.success} />
            <View style={{flex: 1, marginLeft: 12}}>
-             <Text style={styles.statusHeader}>Verified Partner</Text>
-             <Text style={styles.statusSub}>You can bid on all loads</Text>
+             <Text style={styles.statusHeader}>{t('profile.verified')}</Text>
+             <Text style={styles.statusSub}>{t('profile.canBid')}</Text>
            </View>
         </View>
 
         {/* Rating Summary */}
         <View style={styles.ratingCard}>
            <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
-              <Text style={styles.sectionTitle}>Your Rating</Text>
+              <Text style={styles.sectionTitle}>{t('profile.yourRating')}</Text>
               <View style={styles.ratingBadge}>
                  <Star size={18} color="#fff" fill="#fff" />
                  <Text style={styles.ratingValueText}>4.8</Text>
               </View>
            </View>
            <View style={styles.ratingBars}>
-              <View style={styles.ratingRow}><Text style={styles.ratingLabel}>Punctuality</Text><View style={styles.barBg}><View style={[styles.barFill, {width: '95%'}]}/></View></View>
-              <View style={styles.ratingRow}><Text style={styles.ratingLabel}>Goods Safety</Text><View style={styles.barBg}><View style={[styles.barFill, {width: '98%'}]}/></View></View>
-              <View style={styles.ratingRow}><Text style={styles.ratingLabel}>Communication</Text><View style={styles.barBg}><View style={[styles.barFill, {width: '85%'}]}/></View></View>
+              <View style={styles.ratingRow}><Text style={styles.ratingLabel}>{t('profile.punctuality')}</Text><View style={styles.barBg}><View style={[styles.barFill, {width: '95%'}]}/></View></View>
+              <View style={styles.ratingRow}><Text style={styles.ratingLabel}>{t('profile.goodsSafety')}</Text><View style={styles.barBg}><View style={[styles.barFill, {width: '98%'}]}/></View></View>
+              <View style={styles.ratingRow}><Text style={styles.ratingLabel}>{t('profile.communication')}</Text><View style={styles.barBg}><View style={[styles.barFill, {width: '85%'}]}/></View></View>
            </View>
         </View>
 
@@ -94,9 +104,9 @@ export default function ProfileScreen() {
         {profile.userType === 'TRANSPORTER' && (
           <View style={styles.fleetSection}>
             <View style={styles.fleetHeader}>
-              <Text style={styles.sectionTitle}>My Fleet</Text>
+              <Text style={styles.sectionTitle}>{t('profile.myFleet')}</Text>
               <TouchableOpacity onPress={() => Alert.alert('Add Vehicle', 'Adding new vehicle feature coming soon.')}>
-                <Text style={styles.addVehicleLink}>+ Add</Text>
+                <Text style={styles.addVehicleLink}>{t('profile.add')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -112,11 +122,11 @@ export default function ProfileScreen() {
                 </View>
                 <View style={styles.driverInfoRow}>
                   <User size={14} color={theme.colors.textSecondary} />
-                  <Text style={styles.driverText}>{v.driverName || 'No Driver Assigned'}</Text>
+                  <Text style={styles.driverText}>{v.driverName || t('profile.noDriver')}</Text>
                 </View>
                 <View style={styles.driverInfoRow}>
                   <Phone size={14} color={theme.colors.textSecondary} />
-                  <Text style={styles.driverText}>{v.driverPhone || 'No Phone'}</Text>
+                  <Text style={styles.driverText}>{v.driverPhone || t('profile.noPhone')}</Text>
                 </View>
               </TouchableOpacity>
             ))}
@@ -125,38 +135,38 @@ export default function ProfileScreen() {
 
         {/* Menu Items */}
         <View style={styles.menuGroup}>
-           <Text style={styles.sectionTitle}>Account & Settings</Text>
+           <Text style={styles.sectionTitle}>{t('profile.accountSettings')}</Text>
 
            <TouchableOpacity style={styles.menuItem} onPress={() => router.push({ pathname: '/(auth)/document-upload', params: { isEdit: 'true' } })}>
               <View style={styles.menuIconBox}><FileText size={20} color={theme.colors.primary} /></View>
-              <Text style={styles.menuText}>My Documents</Text>
-              <View style={styles.warningBadge}><AlertCircle size={14} color={theme.colors.warning} /><Text style={styles.warningText}>Renew RC</Text></View>
+              <Text style={styles.menuText}>{t('profile.myDocuments')}</Text>
+              <View style={styles.warningBadge}><AlertCircle size={14} color={theme.colors.warning} /><Text style={styles.warningText}>{t('profile.renewRC')}</Text></View>
               <ChevronRight size={20} color={theme.colors.border} />
            </TouchableOpacity>
 
            <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('Payment Methods', 'UPI management coming soon.')}>
               <View style={styles.menuIconBox}><Banknote size={20} color={theme.colors.primary} /></View>
-              <Text style={styles.menuText}>Payment Methods (UPI)</Text>
+              <Text style={styles.menuText}>{t('profile.paymentMethods')}</Text>
               <ChevronRight size={20} color={theme.colors.border} />
            </TouchableOpacity>
 
            <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('Settings', 'App settings coming soon.')}>
               <View style={styles.menuIconBox}><Settings size={20} color={theme.colors.primary} /></View>
-              <Text style={styles.menuText}>App Settings</Text>
+              <Text style={styles.menuText}>{t('profile.appSettings')}</Text>
               <ChevronRight size={20} color={theme.colors.border} />
            </TouchableOpacity>
 
-           <TouchableOpacity style={styles.menuItem} onPress={() => setLangModalVisible(true)}>
+           <TouchableOpacity style={styles.menuItem} onPress={() => { haptics.select(); setLangModalVisible(true); }}>
               <View style={styles.menuIconBox}><Languages size={20} color={theme.colors.primary} /></View>
-              <Text style={styles.menuText}>Language</Text>
-              <Text style={styles.menuValue}>{language}</Text>
+              <Text style={styles.menuText}>{t('profile.language')}</Text>
+              <Text style={styles.menuValue}>{currentLangLabel}</Text>
               <ChevronRight size={20} color={theme.colors.border} />
            </TouchableOpacity>
         </View>
 
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
            <LogOut size={20} color={theme.colors.error} />
-           <Text style={styles.logoutText}>Log Out</Text>
+           <Text style={styles.logoutText}>{t('profile.logout')}</Text>
         </TouchableOpacity>
 
         <View style={{height: 40}} />
@@ -175,17 +185,17 @@ export default function ProfileScreen() {
           onPress={() => setLangModalVisible(false)}
         >
           <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
-            <Text style={styles.modalTitle}>Select Language</Text>
+            <Text style={styles.modalTitle}>{t('profile.selectLanguage')}</Text>
             {LANGUAGES.map(lang => (
               <TouchableOpacity
-                key={lang}
+                key={lang.code}
                 style={styles.langOption}
-                onPress={() => { setLanguage(lang); setLangModalVisible(false); }}
+                onPress={() => handleSelectLanguage(lang.code)}
               >
-                <Text style={[styles.langOptionText, language === lang && styles.langOptionTextActive]}>
-                  {lang}
+                <Text style={[styles.langOptionText, language === lang.code && styles.langOptionTextActive]}>
+                  {lang.label}
                 </Text>
-                {language === lang && <Check size={20} color={theme.colors.primary} />}
+                {language === lang.code && <Check size={20} color={theme.colors.primary} />}
               </TouchableOpacity>
             ))}
           </View>
