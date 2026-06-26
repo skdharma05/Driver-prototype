@@ -2,10 +2,12 @@ import { Tabs } from 'expo-router';
 import { Home, ClipboardList, Truck, Banknote, User } from 'lucide-react-native';
 import { theme } from '../../src/styles/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, Platform } from 'react-native';
+import { Platform } from 'react-native';
+import { useLanguage } from '../../src/context/LanguageContext';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
   const bottomPadding = insets.bottom > 0 ? insets.bottom : (Platform.OS === 'android' ? 12 : 5);
   
   return (
@@ -31,35 +33,35 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: t('nav.home'),
           tabBarIcon: ({ color }) => <Home size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="loads"
         options={{
-          title: 'Loads',
+          title: t('nav.loads'),
           tabBarIcon: ({ color }) => <ClipboardList size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="trips"
         options={{
-          title: 'My Trips',
+          title: t('nav.trips'),
           tabBarIcon: ({ color }) => <Truck size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="payments"
         options={{
-          title: 'Payments',
+          title: t('nav.payments'),
           tabBarIcon: ({ color }) => <Banknote size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: t('nav.profile'),
           tabBarIcon: ({ color }) => <User size={24} color={color} />,
         }}
       />

@@ -1,9 +1,13 @@
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, ActivityIndicator, Alert } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import OSMMap from '../../../src/components/OSMMap';
 import { theme } from '../../../src/styles/theme';
+import { ChevronLeft, MapPin, Calendar, Weight, Truck, User, Phone, PhoneCall, Languages } from 'lucide-react-native';
+import { DUMMY_LOADS } from '../../../src/constants/dummyData';
+import { useLanguage } from '../../../src/context/LanguageContext';
+import { haptics } from '../../../src/utils/haptics';
 import { ChevronLeft, MapPin, Calendar, Weight, Truck } from 'lucide-react-native';
 import { calculateMarketRate } from '../../../src/utils/marketRate';
 import { DUMMY_LOADS } from '../../../src/constants/dummyLoads';
@@ -14,6 +18,7 @@ export default function LoadDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
 
   const [offerAmount, setOfferAmount] = useState('');
   const [loading, setLoading] = useState(false);
@@ -38,6 +43,8 @@ export default function LoadDetailScreen() {
     return () => { cancelled = true; };
   }, [id]);
 
+  const pickupCoords = { latitude: load.pickupLat, longitude: load.pickupLng };
+  const dropCoords = { latitude: load.dropLat, longitude: load.dropLng };
   if (loadingLoad) {
     return (
       <SafeAreaView style={[styles.container, styles.centerFill]}>
@@ -70,29 +77,15 @@ export default function LoadDetailScreen() {
   const pickupCoords = hasCoords ? { latitude: load.pickupLat, longitude: load.pickupLng } : null;
   const dropCoords = hasCoords ? { latitude: load.dropLat, longitude: load.dropLng } : null;
 
-  const handleSubmitOffer = () => {
-    const amount = parseInt(offerAmount);
-    if (!offerAmount || isNaN(amount) || amount <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid offer amount.');
+  const handleCallAgent = () => {
+    if (!load.agentPhone) {
+      Alert.alert(t('detail.noContactTitle'), t('detail.noContact'));
       return;
     }
-
-    // Warn if too low (protects drivers from underbidding)
-    if (amount < marketRate.min * 0.85) {
-      Alert.alert(
-        'Low Offer Warning',
-        `Your offer ₹${amount} is significantly below the suggested market rate (₹${marketRate.min} – ₹${marketRate.max}). `+
-        `Low offers may be ignored by customers. Continue anyway?`,
-        [
-          { text: 'Revise Offer', style: 'cancel' },
-          { 
-            text: 'Submit Anyway', 
-            onPress: () => processSubmission(amount) 
-          }
-        ]
-      );
-      return;
-    }
+    haptics.light();
+    Linking.openURL(`tel:${load.agentPhone}`).catch(() =>
+      Alert.alert(t('detail.callFailTitle'), t('detail.callFail'))
+    );
 
     processSubmission(amount);
   };
@@ -139,7 +132,7 @@ export default function LoadDetailScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <ChevronLeft size={28} color={theme.colors.textInverse} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Load Details</Text>
+        <Text style={styles.headerTitle}>{t('detail.title')}</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -166,11 +159,14 @@ export default function LoadDetailScreen() {
           <View style={styles.locationRow}>
              <MapPin size={20} color={theme.colors.success} />
              <View style={styles.locationInfo}>
+               <Text style={styles.locationTitle}>{t('detail.pickup')}: {load.pickup}</Text>
+               {load.status === 'accepted' ? (
+                 <Text style={styles.locationSubtitle}>{load.pickupAddress}</Text>
                <Text style={styles.locationTitle}>Pickup: {load.pickupCity}</Text>
                {isRevealed ? (
                  <Text style={styles.locationSubtitle}>{load.pickupFullAddress}</Text>
                ) : (
-                 <Text style={styles.addressMasked}>🔒 Full address revealed after acceptance</Text>
+                 <Text style={styles.addressMasked}>{t('detail.masked')}</Text>
                )}
                <Text style={styles.dateText}>{load.pickupDate}</Text>
              </View>
@@ -179,12 +175,16 @@ export default function LoadDetailScreen() {
           <View style={styles.locationRow}>
              <MapPin size={20} color={theme.colors.error} />
              <View style={styles.locationInfo}>
+               <Text style={styles.locationTitle}>{t('detail.drop')}: {load.drop}</Text>
+               {load.status === 'accepted' ? (
+                 <Text style={styles.locationSubtitle}>{load.dropAddress}</Text>
                <Text style={styles.locationTitle}>Drop: {load.dropCity}</Text>
                {isRevealed ? (
                  <Text style={styles.locationSubtitle}>{load.dropFullAddress}</Text>
                ) : (
-                 <Text style={styles.addressMasked}>🔒 Full address revealed after acceptance</Text>
+                 <Text style={styles.addressMasked}>{t('detail.masked')}</Text>
                )}
+               <Text style={styles.dateText}>{t('detail.expected')} {load.expectedDelivery}</Text>
                <Text style={styles.dateText}>Expected: {load.expectedDelivery || '—'}</Text>
              </View>
           </View>
@@ -195,6 +195,8 @@ export default function LoadDetailScreen() {
             <View style={styles.gridItem}>
               <Weight size={18} color={theme.colors.textSecondary} />
               <View style={styles.gridTextContainer}>
+                <Text style={styles.gridLabel}>{t('detail.weight')}</Text>
+                <Text style={styles.gridValue} numberOfLines={2}>{load.weight}</Text>
                 <Text style={styles.gridLabel}>Weight</Text>
                 <Text style={styles.gridValue} numberOfLines={2}>{load.weight} Tons</Text>
               </View>
@@ -202,6 +204,8 @@ export default function LoadDetailScreen() {
             <View style={styles.gridItem}>
               <Truck size={18} color={theme.colors.textSecondary} />
               <View style={styles.gridTextContainer}>
+                <Text style={styles.gridLabel}>{t('detail.vehicle')}</Text>
+                <Text style={styles.gridValue} numberOfLines={2}>{load.vehicle}</Text>
                 <Text style={styles.gridLabel}>Vehicle</Text>
                 <Text style={styles.gridValue} numberOfLines={2}>{load.vehicleType}</Text>
               </View>
@@ -209,6 +213,8 @@ export default function LoadDetailScreen() {
             <View style={styles.gridItem}>
               <MapPin size={18} color={theme.colors.textSecondary} />
               <View style={styles.gridTextContainer}>
+                <Text style={styles.gridLabel}>{t('detail.goods')}</Text>
+                <Text style={styles.gridValue} numberOfLines={2}>{load.goods}</Text>
                 <Text style={styles.gridLabel}>Goods</Text>
                 <Text style={styles.gridValue} numberOfLines={2}>{load.goodsType}</Text>
               </View>
@@ -216,12 +222,18 @@ export default function LoadDetailScreen() {
             <View style={styles.gridItem}>
               <Truck size={18} color={theme.colors.primary} />
               <View style={styles.gridTextContainer}>
+                <Text style={styles.gridLabel}>{t('detail.bidsCount')}</Text>
+                <Text style={[styles.gridValue, {color: theme.colors.primary}]} numberOfLines={2}>{load.totalBidsCount} {t('detail.offers')}</Text>
                 <Text style={styles.gridLabel}>Bids Count</Text>
                 <Text style={[styles.gridValue, {color: theme.colors.primary}]} numberOfLines={2}>{bidsCount} offers</Text>
               </View>
             </View>
         </View>
 
+        {/* Instructions */}
+        <View style={styles.noteBox}>
+           <Text style={styles.noteTitle}>{t('detail.instructions')}</Text>
+           <Text style={styles.noteText}>{load.instructions}</Text>
         {/* Suggested Market Rate */}
         <View style={styles.marketRateBox}>
            <View style={styles.marketRateHeader}>
@@ -240,30 +252,47 @@ export default function LoadDetailScreen() {
            <Text style={styles.noteText}>{instructions}</Text>
         </View>
 
-        {/* Offer Input Section */}
-        <View style={styles.offerSection}>
-          <Text style={styles.offerSectionTitle}>Your Offer Amount</Text>
-          <View style={styles.offerInputWrapper}>
-            <Text style={styles.offerCurrency}>₹</Text>
-            <TextInput 
-              style={styles.offerInput}
-              placeholder="Enter your best price"
-              keyboardType="number-pad"
-              value={offerAmount}
-              onChangeText={setOfferAmount}
-            />
+        {/* Agent Details Section */}
+        <View style={styles.agentSection}>
+          <Text style={styles.agentSectionTitle}>{t('detail.agentDetails')}</Text>
+
+          <View style={styles.agentRow}>
+            <View style={styles.agentIconBox}>
+              <User size={18} color={theme.colors.primary} />
+            </View>
+            <View style={styles.agentTextCol}>
+              <Text style={styles.agentLabel}>{t('detail.agentName')}</Text>
+              <Text style={styles.agentValue}>{load.agentName || t('detail.notAvailable')}</Text>
+            </View>
           </View>
-          <TouchableOpacity 
-            style={[styles.submitOfferBtn, (!offerAmount || loading) && styles.submitOfferBtnDisabled]} 
-            onPress={handleSubmitOffer}
-            disabled={!offerAmount || loading}
-          >
-            {loading ? (
-              <ActivityIndicator color={theme.colors.textInverse} />
-            ) : (
-              <Text style={styles.submitOfferText}>Submit Offer</Text>
-            )}
-          </TouchableOpacity>
+
+          <View style={styles.agentDivider} />
+
+          <View style={styles.agentRow}>
+            <View style={styles.agentIconBox}>
+              <Phone size={18} color={theme.colors.primary} />
+            </View>
+            <View style={styles.agentTextCol}>
+              <Text style={styles.agentLabel}>{t('detail.contactNumber')}</Text>
+              <Text style={styles.agentValue}>{load.agentPhone || t('detail.notAvailable')}</Text>
+            </View>
+            <TouchableOpacity style={styles.callBtn} onPress={handleCallAgent} activeOpacity={0.8}>
+              <PhoneCall size={16} color={theme.colors.textInverse} />
+              <Text style={styles.callBtnText}>{t('loads.call')}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.agentDivider} />
+
+          <View style={styles.agentRow}>
+            <View style={styles.agentIconBox}>
+              <Languages size={18} color={theme.colors.primary} />
+            </View>
+            <View style={styles.agentTextCol}>
+              <Text style={styles.agentLabel}>{t('detail.preferredLanguage')}</Text>
+              <Text style={styles.agentValue}>{load.agentLanguage || t('detail.notAvailable')}</Text>
+            </View>
+          </View>
         </View>
       </ScrollView>
 
@@ -271,6 +300,9 @@ export default function LoadDetailScreen() {
       <View style={[styles.stickyFooter, { paddingBottom: insets.bottom + 12 }]}>
         <View style={styles.footerInfo}>
           <Calendar size={16} color={theme.colors.error} />
+          <Text style={styles.timeRemaining}>{t('detail.remaining', { time: load.timeRemaining })}</Text>
+        </View>
+        <Text style={styles.bidCountText}>{t('detail.totalOffers', { count: load.totalBidsCount })}</Text>
           <Text style={styles.timeRemaining}>
             {load.timeRemaining ? `${load.timeRemaining} remaining` : 'Open for bids'}
           </Text>
@@ -334,19 +366,6 @@ const styles = StyleSheet.create({
   gridTextContainer: { flex: 1 },
   gridLabel: { ...theme.typography.small, color: theme.colors.textSecondary },
   gridValue: { ...theme.typography.bodySemiBold, color: theme.colors.text, flexWrap: 'wrap' },
-  marketRateBox: {
-    backgroundColor: theme.colors.success + '05',
-    marginHorizontal: theme.spacing.md,
-    padding: theme.spacing.lg,
-    borderRadius: theme.borderRadius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.success + '20',
-    marginBottom: theme.spacing.md,
-  },
-  marketRateHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  marketRateTitle: { ...theme.typography.bodySemiBold, color: theme.colors.success },
-  marketPrice: { ...theme.typography.h2, color: theme.colors.text, marginBottom: 4 },
-  marketSubtext: { ...theme.typography.small, color: theme.colors.textSecondary },
   noteBox: {
     backgroundColor: theme.colors.background, padding: theme.spacing.md, 
     marginHorizontal: theme.spacing.md, borderRadius: theme.borderRadius.md,
@@ -354,7 +373,7 @@ const styles = StyleSheet.create({
   },
   noteTitle: { ...theme.typography.label, color: theme.colors.text, marginBottom: 4 },
   noteText: { ...theme.typography.body, color: theme.colors.textSecondary },
-  offerSection: {
+  agentSection: {
     padding: theme.spacing.lg,
     backgroundColor: theme.colors.surface,
     marginHorizontal: theme.spacing.md,
@@ -362,29 +381,25 @@ const styles = StyleSheet.create({
     ...theme.shadows.md,
     marginBottom: 40,
   },
-  offerSectionTitle: { ...theme.typography.h3, color: theme.colors.text, marginBottom: 16, textAlign: 'center' },
-  offerInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing.md,
-    marginBottom: theme.spacing.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+  agentSectionTitle: { ...theme.typography.h3, color: theme.colors.text, marginBottom: 16 },
+  agentRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  agentIconBox: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: theme.colors.primary + '10',
+    alignItems: 'center', justifyContent: 'center',
   },
-  offerCurrency: { ...theme.typography.h3, color: theme.colors.textSecondary, marginRight: 8 },
-  offerInput: { flex: 1, height: 60, ...theme.typography.h3, color: theme.colors.text },
-  submitOfferBtn: {
-    backgroundColor: theme.colors.primary,
-    height: 56,
+  agentTextCol: { flex: 1 },
+  agentLabel: { ...theme.typography.small, color: theme.colors.textSecondary },
+  agentValue: { ...theme.typography.bodySemiBold, color: theme.colors.text, marginTop: 2 },
+  agentDivider: { height: 1, backgroundColor: theme.colors.borderLight, marginVertical: 14 },
+  callBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: theme.colors.success,
+    paddingHorizontal: 16, paddingVertical: 10,
     borderRadius: theme.borderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...theme.shadows.md,
+    ...theme.shadows.sm,
   },
-  submitOfferBtnDisabled: { backgroundColor: theme.colors.border },
-  submitOfferText: { ...theme.typography.buttonLarge, color: theme.colors.textInverse },
+  callBtnText: { ...theme.typography.button, color: theme.colors.textInverse },
   stickyFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',

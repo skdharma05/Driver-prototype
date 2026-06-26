@@ -5,6 +5,8 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '../../src/styles/theme';
 import { useAuth } from '../../src/context/AuthContext';
+import { useLanguage } from '../../src/context/LanguageContext';
+import { haptics } from '../../src/utils/haptics';
 import { BadgeCheck, BatteryLow, Bell, ChevronRight, LayoutGrid, Package, Truck, Wallet } from 'lucide-react-native';
 import * as Battery from 'expo-battery';
 import { DUMMY_ACTIVE_TRIP } from '../../src/constants/dummyData';
@@ -12,6 +14,7 @@ import { DUMMY_ACTIVE_TRIP } from '../../src/constants/dummyData';
 export default function Dashboard() {
   const router = useRouter();
   const { driverProfile } = useAuth();
+  const { t } = useLanguage();
   const [batteryLevel, setBatteryLevel] = useState(null);
   const [activeTrip, setActiveTrip] = useState(null);
   
@@ -75,9 +78,9 @@ export default function Dashboard() {
         {/* Header/Profile Summary */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.welcomeText}>Welcome back,</Text>
+            <Text style={styles.welcomeText}>{t('home.welcomeBack')}</Text>
             <View style={styles.nameContainer}>
-              <Text style={styles.driverName}>{driverProfile?.fullName || 'Driver'}</Text>
+              <Text style={styles.driverName}>{driverProfile?.fullName || t('home.driver')}</Text>
               <BadgeCheck size={18} color={theme.colors.success} fill={theme.colors.success + '20'} />
             </View>
           </View>
@@ -99,32 +102,32 @@ export default function Dashboard() {
           <View style={styles.batteryAlert}>
             <BatteryLow size={20} color={theme.colors.error} />
             <Text style={styles.batteryAlertText}>
-              Low battery ({Math.round(batteryLevel * 100)}%). Please charge for active tracking.
+              {t('home.lowBattery', { pct: Math.round(batteryLevel * 100) })}
             </Text>
           </View>
         )}
 
         {/* Stat Grid */}
         <View style={styles.grid}>
-          <StatCard 
-            title="Available Loads" 
-            value={availableLoadsCount} 
-            icon={Package} 
-            color={theme.colors.primary} 
+          <StatCard
+            title={t('home.availableLoads')}
+            value={availableLoadsCount}
+            icon={Package}
+            color={theme.colors.primary}
             onPress={() => router.push('/(tabs)/loads')}
           />
-          <StatCard 
-            title="Active Bids" 
-            value={activeBidsCount} 
-            icon={LayoutGrid} 
-            color={theme.colors.secondary} 
+          <StatCard
+            title={t('home.activeBids')}
+            value={activeBidsCount}
+            icon={LayoutGrid}
+            color={theme.colors.secondary}
             onPress={() => router.push('/(tabs)/trips')}
           />
         </View>
 
         {/* Action Buttons */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <Text style={styles.sectionTitle}>{t('home.quickActions')}</Text>
           <TouchableOpacity 
             style={styles.actionRow}
             onPress={() => router.push('/(tabs)/loads')}
@@ -134,7 +137,7 @@ export default function Dashboard() {
               <View style={[styles.actionIcon, { backgroundColor: theme.colors.primary + '15' }]}>
                 <Package size={20} color={theme.colors.primary} />
               </View>
-              <Text style={styles.actionText}>View Available Loads</Text>
+              <Text style={styles.actionText}>{t('home.viewAvailableLoads')}</Text>
             </View>
             <ChevronRight size={20} color={theme.colors.textSecondary} />
           </TouchableOpacity>
@@ -148,7 +151,7 @@ export default function Dashboard() {
               <View style={[styles.actionIcon, { backgroundColor: theme.colors.success + '15' }]}>
                 <Wallet size={20} color={theme.colors.success} />
               </View>
-              <Text style={styles.actionText}>Payment History</Text>
+              <Text style={styles.actionText}>{t('home.paymentHistory')}</Text>
             </View>
             <ChevronRight size={20} color={theme.colors.textSecondary} />
           </TouchableOpacity>
@@ -156,7 +159,7 @@ export default function Dashboard() {
 
         {/* Current Trip Summary */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Current Trip</Text>
+          <Text style={styles.sectionTitle}>{t('home.currentTrip')}</Text>
         </View>
         
         {activeTrip ? (
@@ -165,7 +168,7 @@ export default function Dashboard() {
             onPress={() => router.push(`/(trip)/active?id=${activeTrip.id}`)}
           >
             <View style={styles.tripStatusBadge}>
-              <Text style={styles.tripStatusText}>🟢 Trip In Progress</Text>
+              <Text style={styles.tripStatusText}>{t('home.tripInProgress')}</Text>
             </View>
             <View style={styles.tripRoute}>
               <Text style={styles.tripCity}>📍 {activeTrip.pickupCity}</Text>
@@ -180,24 +183,24 @@ export default function Dashboard() {
             </Text>
             <View style={styles.tripActionRow}>
               <TouchableOpacity style={styles.callAdminBtn}
-                onPress={() => Linking.openURL(`tel:${KKP_ADMIN_PHONE}`)}
+                onPress={() => { haptics.light(); Linking.openURL(`tel:${KKP_ADMIN_PHONE}`); }}
               >
-                <Text style={styles.callAdminText}>📞 Call KKP</Text>
+                <Text style={styles.callAdminText}>{t('home.callKKP')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.viewTripBtn}
                 onPress={() => router.push(`/(trip)/active?id=${activeTrip.id}`)}
               >
-                <Text style={styles.viewTripText}>View Trip →</Text>
+                <Text style={styles.viewTripText}>{t('home.viewTrip')}</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
         ) : (
           <View style={styles.emptyCard}>
             <Truck size={40} color={theme.colors.textSecondary} strokeWidth={1} />
-            <Text style={styles.emptyTitle}>No Active Trip</Text>
-            <Text style={styles.emptySub}>Bid on available loads to start your journey.</Text>
+            <Text style={styles.emptyTitle}>{t('home.noActiveTrip')}</Text>
+            <Text style={styles.emptySub}>{t('home.noActiveTripSub')}</Text>
             <TouchableOpacity style={styles.bidButton} onPress={() => router.push('/(tabs)/loads')}>
-              <Text style={styles.bidButtonText}>Go to Loads</Text>
+              <Text style={styles.bidButtonText}>{t('home.goToLoads')}</Text>
             </TouchableOpacity>
           </View>
         )}

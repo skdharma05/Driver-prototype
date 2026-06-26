@@ -1,9 +1,9 @@
-export const DUMMY_LOADS = [
+const RAW_LOADS = [
   // ════════════════════════════════════════
   // CHENNAI LOADS
   // ════════════════════════════════════════
   {
-    loadId: 'CL001', isNew: true,
+    loadId: 'CL001', isNew: true, handRaised: true,
     pickupCity: 'Chennai, TN',
     dropCity: 'Bengaluru, KA',
     pickupFullAddress: 'Plot 45, SIPCOT Industrial Park, Irrungattukottai, Chennai 602105',
@@ -37,7 +37,7 @@ export const DUMMY_LOADS = [
     budgetMin: 35000, budgetMax: 40000,
   },
   {
-    loadId: 'CL003', isNew: true,
+    loadId: 'CL003', isNew: true, handRaised: true,
     pickupCity: 'Chennai, TN',
     dropCity: 'Mumbai, MH',
     pickupFullAddress: 'Survey 14, Manali Industrial Area, Chennai 600068',
@@ -91,7 +91,7 @@ export const DUMMY_LOADS = [
   // MUMBAI LOADS
   // ════════════════════════════════════════
   {
-    loadId: 'ML001', isNew: true,
+    loadId: 'ML001', isNew: true, handRaised: true,
     pickupCity: 'Mumbai, MH',
     dropCity: 'Bengaluru, KA',
     pickupFullAddress: 'Plot A4, Bhiwandi Logistics Park, Thane 421302',
@@ -179,7 +179,7 @@ export const DUMMY_LOADS = [
   // BENGALURU LOADS
   // ════════════════════════════════════════
   {
-    loadId: 'BL001', isNew: true,
+    loadId: 'BL001', isNew: true, handRaised: true,
     pickupCity: 'Bengaluru, KA',
     dropCity: 'Chennai, TN',
     pickupFullAddress: 'Plot 23, KIADB Industrial Area, Hoskote, Bengaluru 562114',
@@ -233,7 +233,7 @@ export const DUMMY_LOADS = [
   // HYDERABAD LOADS
   // ════════════════════════════════════════
   {
-    loadId: 'HL001', isNew: true,
+    loadId: 'HL001', isNew: true, handRaised: true,
     pickupCity: 'Hyderabad, TS',
     dropCity: 'Chennai, TN',
     pickupFullAddress: 'Plot 7, IDA Uppal, Hyderabad 500039',
@@ -449,3 +449,17 @@ export const DUMMY_LOADS = [
     budgetMin: 12000, budgetMax: 16000,
   },
 ];
+
+// Sample booking agents, assigned to loads in round-robin so every card has contact info
+const AGENTS = [
+  { agentName: 'Suresh Reddy',  agentPhone: '+919876500001', agentLanguage: 'Tamil'     },
+  { agentName: 'Anil Kumar',    agentPhone: '+919876500002', agentLanguage: 'Telugu'    },
+  { agentName: 'Mohan Das',     agentPhone: '+919876500003', agentLanguage: 'Malayalam' },
+  { agentName: 'Rajesh Singh',  agentPhone: '+919876500004', agentLanguage: 'Hindi'     },
+  { agentName: 'Vijay Nair',    agentPhone: '+919876500005', agentLanguage: 'English'   },
+];
+
+export const DUMMY_LOADS = RAW_LOADS.map((load, i) => ({
+  ...load,
+  ...AGENTS[i % AGENTS.length],
+}));

@@ -7,6 +7,8 @@ import { theme } from '../../../src/styles/theme';
 import { Truck, MapPin, Calendar, Banknote, ArrowRight, ShieldCheck, Package } from 'lucide-react-native';
 import { getBids } from '../../../src/utils/bidStore';
 import { DUMMY_APPROVED_BID } from '../../../src/constants/dummyData';
+import { useLanguage } from '../../../src/context/LanguageContext';
+import { haptics } from '../../../src/utils/haptics';
 
 const STATUS_CONFIG = {
   pending:  { label: 'Pending',  bg: theme.colors.statusPending,  text: theme.colors.statusPendingText,  icon: '⏳' },
@@ -30,6 +32,7 @@ export default function MyTripsScreen() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
   const router = useRouter();
+  const { t } = useLanguage();
 
   useFocusEffect(
     useCallback(() => {
@@ -66,6 +69,8 @@ export default function MyTripsScreen() {
   const BidCard = ({ item }) => {
     const statusKey = item.status || 'pending';
     const status = STATUS_CONFIG[statusKey] || STATUS_CONFIG.pending;
+    const normForLabel = normaliseStatus(item.status) === 'accepted' ? 'approved' : (normaliseStatus(item.status) || 'pending');
+    const statusLabel = t('trips.' + normForLabel);
     const pickupCity = item.load?.pickupCity || item.pickup || '—';
     const dropCity   = item.load?.dropCity   || item.drop   || '—';
     const date       = item.load?.pickupDate  || item.date   || '—';
@@ -87,7 +92,7 @@ export default function MyTripsScreen() {
             <Text style={styles.routeCity} numberOfLines={1}>{dropCity}</Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
-            <Text style={[styles.statusText, { color: status.text }]}>{status.icon} {status.label}</Text>
+            <Text style={[styles.statusText, { color: status.text }]}>{status.icon} {statusLabel}</Text>
           </View>
         </View>
 
@@ -97,7 +102,7 @@ export default function MyTripsScreen() {
         <View style={styles.metaGrid}>
           <View style={styles.metaItem}>
             <Banknote size={13} color={theme.colors.textSecondary} />
-            <Text style={styles.metaLabel}>Your Offer </Text>
+            <Text style={styles.metaLabel}>{t('trips.yourOffer')} </Text>
             <Text style={[styles.metaValue, { color: theme.colors.primary }]}>{amountStr}</Text>
           </View>
           <View style={styles.metaItem}>
@@ -110,7 +115,7 @@ export default function MyTripsScreen() {
           </View>
           {submitted && (
             <View style={styles.metaItem}>
-              <Text style={styles.metaLabel}>Submitted: </Text>
+              <Text style={styles.metaLabel}>{t('trips.submitted')} </Text>
               <Text style={styles.metaValue}>{submitted}</Text>
             </View>
           )}
@@ -120,10 +125,10 @@ export default function MyTripsScreen() {
         {isApproved && (
           <TouchableOpacity
             style={styles.actionBtn}
-            onPress={() => router.push({ pathname: '/(trip)/assignment', params: { id: item.bidId || item.id } })}
+            onPress={() => { haptics.light(); router.push({ pathname: '/(trip)/assignment', params: { id: item.bidId || item.id } }); }}
           >
             <ShieldCheck size={18} color="#fff" />
-            <Text style={styles.actionBtnText}>View Assignment</Text>
+            <Text style={styles.actionBtnText}>{t('trips.viewAssignment')}</Text>
             <ArrowRight size={18} color="#fff" style={{ marginLeft: 'auto' }} />
           </TouchableOpacity>
         )}
@@ -142,10 +147,10 @@ export default function MyTripsScreen() {
             <TouchableOpacity
               key={tab.key}
               style={[styles.tabChip, isActive && styles.tabChipActive]}
-              onPress={() => setActiveTab(tab.key)}
+              onPress={() => { haptics.select(); setActiveTab(tab.key); }}
             >
               <Text style={[styles.tabChipText, isActive && styles.tabChipTextActive]}>
-                {tab.label} ({count})
+                {t('trips.' + tab.key)} ({count})
               </Text>
             </TouchableOpacity>
           );
@@ -157,14 +162,14 @@ export default function MyTripsScreen() {
       ) : filteredBids.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Package size={52} color={theme.colors.border} strokeWidth={1} />
-          <Text style={styles.emptyTitle}>No bids yet</Text>
+          <Text style={styles.emptyTitle}>{t('trips.empty')}</Text>
           <Text style={styles.emptySub}>
             {activeTab === 'all'
-              ? 'Submit an offer on a load to see it here.'
-              : `No ${activeTab} bids found.`}
+              ? t('trips.emptyAllSub')
+              : t('trips.emptyFilterSub', { status: t('trips.' + activeTab) })}
           </Text>
           <TouchableOpacity style={styles.browseBtn} onPress={() => router.push('/(tabs)/loads')}>
-            <Text style={styles.browseBtnText}>Browse Loads</Text>
+            <Text style={styles.browseBtnText}>{t('trips.browse')}</Text>
           </TouchableOpacity>
         </View>
       ) : (

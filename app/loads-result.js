@@ -1,15 +1,17 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, ScrollView, FlatList,
-  TouchableOpacity, StyleSheet
+  TouchableOpacity, StyleSheet, Animated, Modal, Linking
 } from 'react-native';
-import { ArrowLeft, ChevronRight, X } from 'lucide-react-native';
+import { ArrowLeft, ChevronRight, X, Hand, Filter, Check, User, PhoneCall } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import VehicleFilterSheet from '../src/components/VehicleFilterSheet';
 import TruckIcon from '../src/components/TruckIcon';
 
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { DUMMY_LOADS } from '../src/constants/dummyLoads';
+import { useLanguage } from '../src/context/LanguageContext';
+import { haptics } from '../src/utils/haptics';
 import { fetchAllLoads } from '../src/services/loads';
 
 const CATEGORIES = [
@@ -25,10 +27,13 @@ const LoadsResultScreen = () => {
   const { fromCity = 'Chennai' } = useLocalSearchParams();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
   
   const [sheetVisible,    setSheetVisible]    = useState(false);
   const [activeCategory,  setActiveCategory]  = useState(null);
   const [activeFilter,    setActiveFilter]    = useState(null);
+  const [cityModalVisible, setCityModalVisible] = useState(false);
+  const [selectedDropCity, setSelectedDropCity] = useState(null);
 
   // Loads from Firestore, with local dummy data as the initial fallback.
   const [loads, setLoads] = useState(DUMMY_LOADS);
@@ -60,20 +65,27 @@ const LoadsResultScreen = () => {
     );
   }, [loads, fromCity]);
 
-  // Filter loads by selected city + vehicle type
+  // Unique destination cities available from this origin (for the city filter)
+  const dropCities = useMemo(() => {
+    return [...new Set(cityLoads.map(l => l.dropCity))].sort();
+  }, [cityLoads]);
+
+  // Filter loads by selected city + vehicle type + destination city
   const filteredLoads = useMemo(() => {
     return cityLoads.filter(load => {
       const vehicleMatch = !activeFilter?.category ||
         load.vehicleCategory?.toLowerCase() === activeFilter.category;
-      return vehicleMatch;
+      const cityMatch = !selectedDropCity || load.dropCity === selectedDropCity;
+      return vehicleMatch && cityMatch;
     });
-  }, [cityLoads, activeFilter]);
+  }, [cityLoads, activeFilter, selectedDropCity]);
 
   // Count per vehicle category for chips
   const getCategoryCount = (categoryId) =>
     cityLoads.filter(l => l.vehicleCategory === categoryId).length;
 
   const handleCategoryTap = (categoryId) => {
+    haptics.select();
     setActiveCategory(categoryId);
     setSheetVisible(true);
   };
@@ -81,6 +93,12 @@ const LoadsResultScreen = () => {
   const handleFilterSelect = (filter) => {
     setActiveFilter(filter);
     setSheetVisible(false);
+  };
+
+  const handleCitySelect = (city) => {
+    haptics.select();
+    setSelectedDropCity(city);
+    setCityModalVisible(false);
   };
 
   return (
@@ -91,11 +109,31 @@ const LoadsResultScreen = () => {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <ArrowLeft size={22} color="#fff" />
         </TouchableOpacity>
-        <View>
-          <Text style={styles.headerTitle}>{fromCity} → Anywhere</Text>
-          <Text style={styles.headerSub}>{filteredLoads.length} loads available</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>{fromCity} → {selectedDropCity || t('loads.anywhere')}</Text>
+          <Text style={styles.headerSub}>{t('loads.available', { count: filteredLoads.length })}</Text>
         </View>
+        <TouchableOpacity
+          style={styles.filterBtn}
+          onPress={() => { haptics.select(); setCityModalVisible(true); }}
+          activeOpacity={0.7}
+        >
+          <Filter size={20} color="#fff" />
+          {selectedDropCity && <View style={styles.filterDot} />}
+        </TouchableOpacity>
       </View>
+
+      {/* Active city filter chip */}
+      {selectedDropCity && (
+        <View style={styles.activeFilterBar}>
+          <View style={styles.activeFilterChip}>
+            <Text style={styles.activeFilterText}>{t('loads.to')} {selectedDropCity}</Text>
+            <TouchableOpacity onPress={() => { haptics.select(); setSelectedDropCity(null); }} hitSlop={8}>
+              <X size={14} color="#1E3A8A" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* ── Top Category Chips ───────────────── */}
       <View style={styles.filterSection}>
@@ -121,7 +159,7 @@ const LoadsResultScreen = () => {
                 styles.categoryChipLabel,
                 activeCategory === cat.id && styles.categoryChipLabelActive
               ]}>
-                {cat.label}
+                {t('cat.' + cat.id)}
               </Text>
               <Text style={[
                 styles.categoryChipTons,
@@ -159,19 +197,67 @@ const LoadsResultScreen = () => {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>📦</Text>
-            <Text style={styles.emptyTitle}>No loads available</Text>
+            <Text style={styles.emptyTitle}>{t('loads.empty')}</Text>
             <Text style={styles.emptySub}>
-              No {activeFilter?.category ? activeFilter.category : ''} loads from {fromCity} right now.
+              {t('loads.emptySub')}
             </Text>
             <TouchableOpacity
-              onPress={() => { setActiveFilter(null); setActiveCategory(null); }}
+              onPress={() => { haptics.select(); setActiveFilter(null); setActiveCategory(null); }}
               style={styles.resetBtn}
             >
-              <Text style={styles.resetBtnText}>Show All Vehicle Types</Text>
+              <Text style={styles.resetBtnText}>{t('loads.showAll')}</Text>
             </TouchableOpacity>
           </View>
         }
       />
+
+      {/* ── City Filter Modal ──────────────────────── */}
+      <Modal
+        visible={cityModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setCityModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setCityModalVisible(false)}
+        >
+          <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t('loads.filterTitle')}</Text>
+              <TouchableOpacity onPress={() => setCityModalVisible(false)} hitSlop={8}>
+                <X size={22} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 380 }}>
+              <TouchableOpacity
+                style={styles.cityOption}
+                onPress={() => handleCitySelect(null)}
+              >
+                <Text style={[styles.cityOptionText, !selectedDropCity && styles.cityOptionTextActive]}>
+                  {t('loads.allCities')}
+                </Text>
+                {!selectedDropCity && <Check size={18} color="#1E3A8A" />}
+              </TouchableOpacity>
+
+              {dropCities.map(city => (
+                <TouchableOpacity
+                  key={city}
+                  style={styles.cityOption}
+                  onPress={() => handleCitySelect(city)}
+                >
+                  <Text style={[styles.cityOptionText, selectedDropCity === city && styles.cityOptionTextActive]}>
+                    {city}
+                  </Text>
+                  {selectedDropCity === city && <Check size={18} color="#1E3A8A" />}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
     </View>
   );
@@ -180,7 +266,39 @@ const LoadsResultScreen = () => {
 // ── Load Card ─────────────────────────────────────────
 const LoadCard = ({ load }) => {
   const router = useRouter();
-  
+  const { t } = useLanguage();
+  const [raised, setRaised] = useState(!!load.handRaised);
+  const wave = useRef(new Animated.Value(0)).current;
+
+  // Waving animation: rotate the hand back and forth a few times
+  const triggerWave = () => {
+    wave.setValue(0);
+    Animated.sequence([
+      Animated.timing(wave, { toValue: 1,  duration: 110, useNativeDriver: true }),
+      Animated.timing(wave, { toValue: -1, duration: 110, useNativeDriver: true }),
+      Animated.timing(wave, { toValue: 1,  duration: 110, useNativeDriver: true }),
+      Animated.timing(wave, { toValue: -1, duration: 110, useNativeDriver: true }),
+      Animated.timing(wave, { toValue: 0,  duration: 110, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const handleRaiseHand = () => {
+    haptics.medium();
+    triggerWave();
+    setRaised(prev => !prev);
+  };
+
+  const handleCallAgent = () => {
+    if (!load.agentPhone) return;
+    haptics.light();
+    Linking.openURL(`tel:${load.agentPhone}`).catch(() => {});
+  };
+
+  const rotate = wave.interpolate({
+    inputRange: [-1, 1],
+    outputRange: ['-22deg', '22deg'],
+  });
+
   return (
   <TouchableOpacity
     style={styles.loadCard}
@@ -192,7 +310,7 @@ const LoadCard = ({ load }) => {
     {/* NEW badge */}
     {load.isNew && (
       <View style={styles.newBadge}>
-        <Text style={styles.newBadgeText}>NEW</Text>
+        <Text style={styles.newBadgeText}>{t('loads.new')}</Text>
       </View>
     )}
 
@@ -207,14 +325,33 @@ const LoadCard = ({ load }) => {
         <Text style={styles.cityText} numberOfLines={1}>{load.pickupCity}</Text>
         <Text style={styles.cityText} numberOfLines={1}>{load.dropCity}</Text>
       </View>
+      {/* Raise-hand button: tap to signal interest, waves on press */}
+      <TouchableOpacity
+        style={[styles.handBtn, raised && styles.handBtnActive]}
+        onPress={handleRaiseHand}
+        activeOpacity={0.7}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <Animated.View style={{ transform: [{ rotate }] }}>
+          <Hand
+            size={20}
+            color={raised ? '#B45309' : '#9CA3AF'}
+            fill={raised ? '#FCD34D' : 'transparent'}
+          />
+        </Animated.View>
+      </TouchableOpacity>
+
       <ChevronRight size={18} color="#9CA3AF" />
     </View>
+
+    {/* Status text shown once interest has been signaled */}
+    {raised && <Text style={styles.handRaisedText}>✋ {t('loads.interestSent')}</Text>}
 
     <View style={styles.divider} />
 
     {/* Truck info */}
     <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>Truck Type</Text>
+      <Text style={styles.infoLabel}>{t('loads.truckType')}</Text>
       <View style={styles.truckTags}>
         <View style={styles.tag}>
           <Text style={styles.tagText}>🚛 {load.vehicleType}</Text>
@@ -231,18 +368,39 @@ const LoadCard = ({ load }) => {
     {/* Product + Payment */}
     <View style={styles.metaRow}>
       <View style={styles.metaCol}>
-        <Text style={styles.metaLabel}>Product</Text>
+        <Text style={styles.metaLabel}>{t('loads.product')}</Text>
         <Text style={styles.metaValue} numberOfLines={1}>{load.goodsType}</Text>
       </View>
       <View style={styles.metaCol}>
-        <Text style={styles.metaLabel}>Payment</Text>
+        <Text style={styles.metaLabel}>{t('loads.payment')}</Text>
         <Text style={styles.metaValue} numberOfLines={1}>{load.paymentTerms}</Text>
       </View>
       {load.paymentGuaranteed && (
         <View style={styles.guaranteeBadge}>
-          <Text style={styles.guaranteeText}>✅ PAYMENT{'\n'}GUARANTEED</Text>
+          <Text style={styles.guaranteeText}>✅ {t('loads.guaranteed')}</Text>
         </View>
       )}
+    </View>
+
+    {/* Agent info + Call */}
+    <View style={styles.divider} />
+    <View style={styles.agentRow}>
+      <View style={styles.agentIconBox}>
+        <User size={16} color="#1E3A8A" />
+      </View>
+      <View style={styles.agentInfo}>
+        <Text style={styles.agentName} numberOfLines={1}>{load.agentName}</Text>
+        <Text style={styles.agentPhone} numberOfLines={1}>{load.agentPhone}</Text>
+      </View>
+      <TouchableOpacity
+        style={styles.callBtn}
+        onPress={handleCallAgent}
+        activeOpacity={0.8}
+        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+      >
+        <PhoneCall size={15} color="#fff" />
+        <Text style={styles.callBtnText}>{t('loads.call')}</Text>
+      </TouchableOpacity>
     </View>
 
   </TouchableOpacity>
@@ -262,6 +420,55 @@ const styles = StyleSheet.create({
   backBtn:     { padding: 4 },
   headerTitle: { fontSize: 18, fontWeight: '800', color: '#fff' },
   headerSub:   { fontSize: 12, color: '#93C5FD', marginTop: 2 },
+
+  filterBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  filterDot: {
+    position: 'absolute', top: 8, right: 8,
+    width: 9, height: 9, borderRadius: 5,
+    backgroundColor: '#F59E0B',
+    borderWidth: 1.5, borderColor: '#1E3A8A',
+  },
+
+  activeFilterBar: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 16, paddingTop: 10,
+    flexDirection: 'row',
+  },
+  activeFilterChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1, borderColor: '#1E3A8A',
+    borderRadius: 20,
+    paddingLeft: 12, paddingRight: 8, paddingVertical: 5,
+  },
+  activeFilterText: { fontSize: 12, fontWeight: '700', color: '#1E3A8A' },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32,
+  },
+  modalHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  modalTitle: { fontSize: 17, fontWeight: '800', color: '#1a1a1a' },
+  cityOption: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
+  },
+  cityOptionText: { fontSize: 15, color: '#374151' },
+  cityOptionTextActive: { color: '#1E3A8A', fontWeight: '700' },
 
   filterSection: {
     backgroundColor: '#fff',
@@ -322,6 +529,18 @@ const styles = StyleSheet.create({
   routeCities:{ flex: 1, gap: 10 },
   cityText:   { fontSize: 15, fontWeight: '700', color: '#1a1a1a' },
 
+  handBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1.5, borderColor: 'transparent',
+  },
+  handBtnActive: { backgroundColor: '#FEF3C7', borderColor: '#FCD34D' },
+  handRaisedText: {
+    fontSize: 11, fontWeight: '700', color: '#B45309',
+    alignSelf: 'flex-start', marginBottom: 10,
+  },
+
   divider:    { height: 1, backgroundColor: '#F3F4F6', marginBottom: 10 },
 
   infoLabel:  { fontSize: 11, color: '#6B7280', marginBottom: 6, fontWeight: '500' },
@@ -347,6 +566,23 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#22C55E',
   },
   guaranteeText: { fontSize: 9, color: '#16A34A', fontWeight: '800', textAlign: 'center' },
+
+  agentRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
+  agentIconBox: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  agentInfo: { flex: 1 },
+  agentName:  { fontSize: 13, fontWeight: '700', color: '#1a1a1a' },
+  agentPhone: { fontSize: 12, color: '#6B7280', marginTop: 1 },
+  callBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#22C55E',
+    paddingHorizontal: 16, paddingVertical: 8,
+    borderRadius: 10,
+  },
+  callBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
 
   emptyState: { alignItems: 'center', paddingVertical: 60 },
   emptyIcon:  { fontSize: 48, marginBottom: 12 },
